@@ -5,6 +5,7 @@
   "plugin": "dev.muon.dynamictooltips.mixin.MixinConfigPlugin",
   "mixins": [
     "ItemStackMixin",
+    "compat.bettercombat.WeaponAttributeTooltipMixin"
   ],
   "client": [
   ],

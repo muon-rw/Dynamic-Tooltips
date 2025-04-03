@@ -29,15 +29,12 @@ repositories {
 }
 
 dependencies {
-
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	/*
 	mappings loom.layered() {
 		officialMojangMappings()
-		parchment("org.parchmentmc.data:parchment-1.21:2024.11.17@zip")
+		parchment("org.parchmentmc.data:parchment-1.21.1:2024.11.17@zip")
 	}
-	*/
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	// mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
@@ -46,9 +43,12 @@ dependencies {
 	annotationProcessor("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.2.0")
 
 	// Compatibility Testing
-	modImplementation "curse.maven:tieredz-615948:6130503"
+	modLocalRuntime "curse.maven:tieredz-615948:6130503"
 	modLocalRuntime "curse.maven:libz-841617:5712924"
 	modLocalRuntime "curse.maven:cloth-config-348521:5729125"
+
+	modImplementation "curse.maven:better-combat-by-daedelus-639842:6097300"
+	modLocalRuntime "curse.maven:playeranimator-658587:6024464"
 }
 
 processResources {

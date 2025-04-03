@@ -2,50 +2,33 @@ package dev.muon.dynamictooltips.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import dev.muon.dynamictooltips.AttributeTooltipHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 import java.util.List;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 
-@Mixin(value = ItemStack.class, remap = true)
+@Mixin(ItemStack.class)
 public class ItemStackMixin {
-    private static final Logger LOGGER = LoggerFactory.getLogger("DynamicTooltips-Mixin");
     
     @ModifyReturnValue(
-            method = "getTooltip",
+            method = "getTooltipLines",
             at = @At("RETURN")
     )
-    private List<Text> applyEnhancedAttributeTooltips(List<Text> tooltip, Item.TooltipContext context, @Nullable PlayerEntity player, TooltipType type) {
-        if (!(player instanceof ClientPlayerEntity)) return tooltip;
+    private List<Component> modifyTooltipLines(List<Component> tooltip, Item.TooltipContext context, @Nullable Player player, TooltipFlag type) {
+        if (!(player instanceof LocalPlayer) || context == null || Minecraft.getInstance() == null || Minecraft.getInstance().level == null) {
+             return tooltip;
+        }
         ItemStack stack = (ItemStack)(Object)this;
 
-        LOGGER.info("Processing tooltip for: {}", stack.getName().getString());
-        LOGGER.info("Tooltip type: {}", type);
-        LOGGER.info("Original tooltip size: {}", tooltip.size());
-
-        // Log original tooltip contents
-        for (int i = 0; i < tooltip.size(); i++) {
-            LOGGER.info("Original Line {}: \"{}\"", i, tooltip.get(i).getString());
-        }
-
-        // Process tooltips
         AttributeTooltipHandler.processTooltip(stack, tooltip, player);
-
-        LOGGER.info("Processed tooltip size: {}", tooltip.size());
-
-        // Log processed tooltip
-        for (int i = 0; i < tooltip.size(); i++) {
-            LOGGER.info("Processed Line {}: \"{}\"", i, tooltip.get(i).getString());
-        }
 
         return tooltip;
     }
