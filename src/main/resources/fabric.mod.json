@@ -12,7 +12,7 @@
 		"sources": "https://github.com/muon-rw/Dynamic-Tooltips"
 	},
 	"license": "MIT",
-	"icon": "assets/betterend-crashed-ships/icon.png",
+	"icon": "assets/dynamictooltips/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
