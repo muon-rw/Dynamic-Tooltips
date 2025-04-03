@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "dev.muon.dynamictooltips.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "dev.muon.dynamictooltips.mixin.MixinConfigPlugin",
+  "mixins": [
+    "ItemStackMixin",
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+	}
+}
