@@ -38,12 +38,11 @@ import net.minecraft.core.Holder;
  */
 public class AttackRangeTooltipHandler {
 
-    private static final boolean IS_BETTER_COMBAT_LOADED = FabricLoader.getInstance().isModLoaded("bettercombat");
     private static final Logger LOGGER = LoggerFactory.getLogger("DynamicTooltips-AttackRange");
     private static final DecimalFormat FORMAT = new DecimalFormat("#.##", new DecimalFormatSymbols(Locale.ROOT));
 
     public static void appendAttackRangeLines(ItemStack stack, Consumer<Component> tooltipConsumer, @Nullable Player player, Set<Holder<Attribute>> handledAttributes) {
-        if (!IS_BETTER_COMBAT_LOADED || !BetterCombatClientMod.config.isTooltipAttackRangeEnabled) {
+        if (!(FabricLoader.getInstance().isModLoaded("bettercombat")) || !BetterCombatClientMod.config.isTooltipAttackRangeEnabled) {
             return;
         }
         if (!(player instanceof LocalPlayer localPlayer)) {

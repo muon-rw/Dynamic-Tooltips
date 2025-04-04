@@ -42,14 +42,13 @@ import net.bettercombat.logic.WeaponRegistry;
  * Merged Attribute Modifier tooltips, inspired by NeoForge.
  */
 public class AttributeTooltipHandler {
-    private static final boolean IS_BETTER_COMBAT_LOADED = FabricLoader.getInstance().isModLoaded("bettercombat");
     private static final Logger LOGGER = LoggerFactory.getLogger("DynamicTooltips-Attributes");
     private static final DecimalFormat FORMAT = new DecimalFormat("#.##", new DecimalFormatSymbols(Locale.ROOT));
     private static final ResourceLocation FAKE_MERGED_ID = ResourceLocation.fromNamespaceAndPath(DynamicTooltips.MODID, "fake_merged_modifier");
 
     static final ChatFormatting BASE_COLOR = ChatFormatting.DARK_GREEN;
-    static final ChatFormatting MERGED_BASE_COLOR = ChatFormatting.GOLD;
-    static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
+    public static final ChatFormatting MERGED_BASE_COLOR = ChatFormatting.GOLD;
+    public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
     static final ChatFormatting POSITIVE_COLOR = ChatFormatting.BLUE;
     static final ChatFormatting NEGATIVE_COLOR = ChatFormatting.RED;
 
@@ -358,7 +357,7 @@ public class AttributeTooltipHandler {
         boolean hasAttackSpeedModifier = itemModifiers.keySet().stream()
             .anyMatch(attrHolder -> attrHolder.value() == Attributes.ATTACK_SPEED.value());
 
-        if (IS_BETTER_COMBAT_LOADED) {
+        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
             WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
             // Show as a base attr if item has AS but NO BetterCombat attributes (it's not a weapon)
             if (hasAttackSpeedModifier && weaponAttributes == null) {
@@ -577,10 +576,8 @@ public class AttributeTooltipHandler {
         return count;
     }
 
-    /**
-     * Stores a single base modifier and its children
-     */
-    private static class BaseModifier {
+    // Make this public static so it can be accessed by itemHasExpandableAttributes
+    public static class BaseModifier {
         final AttributeModifier base;
         final List<AttributeModifier> children;
 
