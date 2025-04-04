@@ -3,6 +3,9 @@ package dev.muon.dynamictooltips;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
+import net.fabric_extras.ranged_weapon.api.AttributeModifierIDs;
+import net.fabric_extras.ranged_weapon.api.CustomRangedWeapon;
+import net.fabric_extras.ranged_weapon.api.EntityAttributes_RangedWeapon;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.item.DiggerItem;
@@ -14,13 +17,11 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -33,10 +34,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.fabricmc.loader.api.FabricLoader;
 import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.logic.WeaponRegistry;
+import net.fabric_extras.ranged_weapon.api.RangedConfig;
+
 
 /**
  * Merged Attribute Modifier tooltips, inspired by NeoForge.
@@ -47,7 +49,7 @@ public class AttributeTooltipHandler {
     private static final ResourceLocation FAKE_MERGED_ID = ResourceLocation.fromNamespaceAndPath(DynamicTooltips.MODID, "fake_merged_modifier");
 
     static final ChatFormatting BASE_COLOR = ChatFormatting.DARK_GREEN;
-    public static final ChatFormatting MERGED_BASE_COLOR = ChatFormatting.GOLD;
+    public static final int MERGE_BASE_MODIFIER_COLOR = 16758784; // Gold
     public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
     static final ChatFormatting POSITIVE_COLOR = ChatFormatting.BLUE;
     static final ChatFormatting NEGATIVE_COLOR = ChatFormatting.RED;
@@ -60,11 +62,13 @@ public class AttributeTooltipHandler {
     private static final Map<String, EquipmentSlotGroup> KEY_SLOT_MAP = Util.make(new HashMap<>(), map -> {
         map.put(Component.translatable("item.modifiers.mainhand").getString(), EquipmentSlotGroup.MAINHAND);
         map.put(Component.translatable("item.modifiers.offhand").getString(), EquipmentSlotGroup.OFFHAND);
+        map.put(Component.translatable("item.modifiers.hand").getString(), EquipmentSlotGroup.HAND);
         map.put(Component.translatable("item.modifiers.head").getString(), EquipmentSlotGroup.HEAD);
         map.put(Component.translatable("item.modifiers.chest").getString(), EquipmentSlotGroup.CHEST);
         map.put(Component.translatable("item.modifiers.legs").getString(), EquipmentSlotGroup.LEGS);
         map.put(Component.translatable("item.modifiers.feet").getString(), EquipmentSlotGroup.FEET);
         map.put(Component.translatable("item.modifiers.body").getString(), EquipmentSlotGroup.BODY);
+        map.put(Component.translatable("item.modifiers.armor").getString(), EquipmentSlotGroup.ARMOR);
         map.put(Component.translatable("tiered.slot.feet").getString(), EquipmentSlotGroup.FEET);
         map.put(Component.translatable("tiered.slot.head").getString(), EquipmentSlotGroup.HEAD);
         map.put(Component.translatable("tiered.slot.chest").getString(), EquipmentSlotGroup.CHEST);
@@ -101,49 +105,146 @@ public class AttributeTooltipHandler {
 
     /**
      * Main entry point for tooltip processing
+     * @return ProcessingResult indicating if changes were made and which header was used.
      */
-    public static void processTooltip(ItemStack stack, List<Component> tooltip, @Nullable Player player) {
-        // Check if the item has any attribute sections
+    public static ProcessingResult processTooltip(ItemStack stack, List<Component> tooltip, @Nullable Player player) {
         List<AttributeSection> sections = findAttributeSections(tooltip);
         if (sections.isEmpty()) {
-            return;
+            return ProcessingResult.NO_CHANGE;
         }
 
-        // Process the tooltip
-        List<Component> newTooltip = new ArrayList<>();
-        int currentIndex = 0;
-        for (int sectionIdx = 0; sectionIdx < sections.size(); sectionIdx++) {
-            AttributeSection section = sections.get(sectionIdx);
-            int sectionStart = section.startIndex;
-            
-            // Add lines before this section
-            while (currentIndex < sectionStart) {
-                newTooltip.add(tooltip.get(currentIndex++));
-            }
-            
-            // Add the section header
-            newTooltip.add(tooltip.get(currentIndex++));
-            
-            // Process the section content
-            Multimap<Holder<Attribute>, AttributeModifier> modifiers = getSortedModifiers(stack, section.slot);
-            if (!modifiers.isEmpty()) {
-                applyTextFor(stack, newTooltip::add, modifiers, player);
-            } else {
-                for (int i = 0; i < section.lineCount; i++) {
-                    newTooltip.add(tooltip.get(currentIndex + i));
+        // Determine primary and additional slots based on *found sections*, not item type
+        EquipmentSlotGroup primarySlotGroup = null;
+        Set<EquipmentSlotGroup> additionalSlotGroups = new HashSet<>();
+        AttributeSection primarySection = null; // Keep track of the section that defined the primary group
+
+        // Priority Order Check
+        List<EquipmentSlotGroup> priorityOrder = List.of(
+            EquipmentSlotGroup.HEAD, EquipmentSlotGroup.CHEST, EquipmentSlotGroup.LEGS, EquipmentSlotGroup.FEET, // Specific Armor
+            EquipmentSlotGroup.MAINHAND,
+            EquipmentSlotGroup.HAND,
+            EquipmentSlotGroup.ARMOR,
+            EquipmentSlotGroup.BODY 
+        );
+
+        for (EquipmentSlotGroup potentialPrimary : priorityOrder) {
+            for (AttributeSection section : sections) {
+                if (section.slot == potentialPrimary) {
+                    primarySlotGroup = potentialPrimary;
+                    primarySection = section; // Found the highest priority group present
+                    break; 
                 }
             }
-            
-            currentIndex += section.lineCount;
+            if (primarySlotGroup != null) break; // Stop checking priorities once found
+        }
+
+        // If no relevant primary group was identified from sections
+        if (primarySlotGroup == null) {
+             LOGGER.debug("No relevant primary slot group identified from tooltip sections for {}, skipping.", stack.getItem());
+             return ProcessingResult.NO_CHANGE; 
+        }
+
+        // Determine additional groups based on primary
+        if (primarySlotGroup == EquipmentSlotGroup.HEAD || 
+            primarySlotGroup == EquipmentSlotGroup.CHEST || 
+            primarySlotGroup == EquipmentSlotGroup.LEGS || 
+            primarySlotGroup == EquipmentSlotGroup.FEET || 
+            primarySlotGroup == EquipmentSlotGroup.BODY) {
+             additionalSlotGroups.add(EquipmentSlotGroup.ARMOR);
+        }
+
+        // --- Modifier Gathering --- 
+        Multimap<Holder<Attribute>, AttributeModifier> combinedModifiers = LinkedListMultimap.create();
+        
+        // Fetch primary group modifiers
+        combinedModifiers.putAll(getSortedModifiers(stack, primarySlotGroup));
+
+        // Fetch and add non-duplicate additional group modifiers (e.g., ARMOR for specific armor)
+        for(EquipmentSlotGroup additionalGroup : additionalSlotGroups) {
+             Multimap<Holder<Attribute>, AttributeModifier> additionalModifiers = getSortedModifiers(stack, additionalGroup);
+             addNonDuplicateModifiers(combinedModifiers, additionalModifiers);
         }
         
-        // Add remaining lines
-        while (currentIndex < tooltip.size()) {
-            newTooltip.add(tooltip.get(currentIndex++));
+        // Determine the header group (usually primary, but HAND takes precedence if it was the primary found)
+        EquipmentSlotGroup groupForHeader = primarySlotGroup;
+        // No special case needed here now, HAND will be primary if it was highest priority found.
+
+        if (combinedModifiers.isEmpty()) {
+            // No modifiers to display, keep original tooltip
+            return ProcessingResult.NO_CHANGE;
         }
-        
+
+        // --- Build the new tooltip --- 
+        // [ Rest of the method remains the same: Find boundaries, add lines before, add canonical header, applyTextFor, add lines after ]
+        List<Component> newTooltip = new ArrayList<>();
+        int currentOriginalIndex = 0;
+        List<AttributeSection> sortedSections = new ArrayList<>(sections);
+        sortedSections.sort(Comparator.comparingInt(s -> s.startIndex));
+        AttributeSection firstSectionOverall = sortedSections.get(0);
+        AttributeSection lastSectionOverall = sortedSections.get(sortedSections.size() - 1);
+        int endOfLastSectionIndex = lastSectionOverall.startIndex + lastSectionOverall.lineCount;
+        while (currentOriginalIndex < firstSectionOverall.startIndex) {
+            newTooltip.add(tooltip.get(currentOriginalIndex++));
+        }
+        Component finalHeader = getHeaderForSlotGroup(groupForHeader); 
+        newTooltip.add(finalHeader);
+        applyTextFor(stack, newTooltip::add, combinedModifiers, player);
+        currentOriginalIndex = endOfLastSectionIndex + 1;
+        while (currentOriginalIndex < tooltip.size()) {
+            newTooltip.add(tooltip.get(currentOriginalIndex++));
+        }
+
         tooltip.clear();
         tooltip.addAll(newTooltip);
+        return new ProcessingResult(true, finalHeader);
+    }
+
+    /**
+     * Adds modifiers from the source map to the target map, avoiding duplicates
+     * based on attribute and modifier ID.
+     */
+    private static void addNonDuplicateModifiers(
+            Multimap<Holder<Attribute>, AttributeModifier> target,
+            Multimap<Holder<Attribute>, AttributeModifier> source) {
+        
+        // Track target attribute+modifier ID pairs to avoid duplication
+        Set<String> existingIds = new HashSet<>();
+        target.forEach((attrHolder, mod) -> {
+            ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
+            if (attrId != null) {
+                existingIds.add(attrId + ":" + mod.id());
+            }
+        });
+
+        // Add source modifiers that aren't already in target
+        source.forEach((attrHolder, mod) -> {
+            ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
+            if (attrId != null) {
+                String key = attrId + ":" + mod.id();
+                if (!existingIds.contains(key)) {
+                    target.put(attrHolder, mod);
+                }
+            }
+        });
+    }
+
+    /**
+     * Gets an appropriate header component for a slot group
+     */
+    private static Component getHeaderForSlotGroup(EquipmentSlotGroup group) {
+        String key = switch (group) {
+            case MAINHAND -> "item.modifiers.mainhand";
+            case OFFHAND -> "item.modifiers.offhand";
+            case HAND -> "item.modifiers.hand";
+            case FEET -> "item.modifiers.feet";
+            case LEGS -> "item.modifiers.legs";
+            case CHEST -> "item.modifiers.chest";
+            case HEAD -> "item.modifiers.head";
+            case BODY -> "item.modifiers.body";
+            case ARMOR -> "item.modifiers.armor";
+            default -> "item.modifiers.hand"; // Default fallback
+        };
+        return Component.translatable(key).withStyle(ChatFormatting.GRAY);
     }
 
     /**
@@ -157,6 +258,51 @@ public class AttributeTooltipHandler {
                 map.put(attributeHolder, modifier);
             }
         });
+
+        // --- Ranged Weapon API Integration ---
+        if (FabricLoader.getInstance().isModLoaded("ranged_weapon_api")) { 
+            Item item = stack.getItem();
+            if (item instanceof CustomRangedWeapon customRangedWeapon && (slot == EquipmentSlotGroup.MAINHAND || slot == EquipmentSlotGroup.HAND)) {
+                // RWA applies base damage/pull time differently, manually add them if not already present
+                
+                // Check if base damage modifier is missing
+                boolean hasBaseDamage = map.values().stream().anyMatch(mod -> mod.id().equals(AttributeModifierIDs.WEAPON_DAMAGE_ID));
+                if (!hasBaseDamage) {
+                    try {
+                        // Get base damage from RWA baseline config
+                        RangedConfig config = customRangedWeapon.getTypeBaseline(); // Use the correct method
+                        double baseDamage = config.damage();
+                        if (baseDamage != 0) {
+                            Holder<Attribute> damageAttr = EntityAttributes_RangedWeapon.DAMAGE.entry;
+                            AttributeModifier baseDamageMod = new AttributeModifier(AttributeModifierIDs.WEAPON_DAMAGE_ID, baseDamage, Operation.ADD_VALUE);
+                            map.put(damageAttr, baseDamageMod);
+                            // Removed debug log for release
+                        }
+                    } catch (Exception e) {
+                         LOGGER.warn("Failed to get RWA base damage for {}: {}", stack, e.getMessage());
+                    }
+                }
+
+                // Check if base pull time modifier is missing
+                boolean hasBasePullTime = map.values().stream().anyMatch(mod -> mod.id().equals(AttributeModifierIDs.WEAPON_PULL_TIME_ID));
+                 if (!hasBasePullTime) {
+                     try {
+                         // Get pull time bonus from RWA baseline config
+                         RangedConfig config = customRangedWeapon.getTypeBaseline(); // Use the correct method
+                         double pullTimeBonus = config.pull_time_bonus(); 
+
+                         Holder<Attribute> pullTimeAttr = EntityAttributes_RangedWeapon.PULL_TIME.entry;
+                         AttributeModifier basePullTimeMod = new AttributeModifier(AttributeModifierIDs.WEAPON_PULL_TIME_ID, pullTimeBonus, Operation.ADD_VALUE);
+                         map.put(pullTimeAttr, basePullTimeMod);
+                         // Removed debug log for release
+                         
+                     } catch (Exception e) {
+                         LOGGER.warn("Failed to get RWA base pull time for {}: {}", stack, e.getMessage());
+                     }
+                 }
+            }
+        }
+        // --- End RWA Integration ---
 
         return map;
     }
@@ -235,7 +381,7 @@ public class AttributeTooltipHandler {
             boolean isMerged = !baseModifier.children.isEmpty();
 
             MutableComponent text = createBaseComponent(attr.value(), amount, entityBase, isMerged);
-            tooltip.accept(Component.literal(" ").append(text.withStyle(isMerged ? MERGED_BASE_COLOR : BASE_COLOR)));
+            tooltip.accept(Component.literal(" ").append(text.withStyle(isMerged ? style -> style.withColor(MERGE_BASE_MODIFIER_COLOR) : style -> style.applyFormat(BASE_COLOR))));
 
             if (isDetailedView() && isMerged) {
                 text = createBaseComponent(attr.value(), rawBase, entityBase, false);
@@ -270,9 +416,9 @@ public class AttributeTooltipHandler {
 
         // Iterate over the sorted remaining attributes
         for (Holder<Attribute> attr : sortedRemaining.keySet()) {
-             if (handledAttributes.contains(attr)) {
-                 continue;
-             }
+            if (handledAttributes.contains(attr)) {
+                  continue;
+              }
 
             Collection<AttributeModifier> modifiers = sortedRemaining.get(attr);
             if (modifiers == null || modifiers.isEmpty()) continue;
@@ -284,7 +430,6 @@ public class AttributeTooltipHandler {
             // --- Step 1: Separate mergeable and non-mergeable modifiers ---
             for (AttributeModifier modifier : modifiers) {
                 if (modifier.amount() == 0) continue; // Skip zero-amount modifiers
-
                 // Determine if this modifier type should be merged (e.g., standard +/-/x)
                 boolean canMerge = modifier.operation() == Operation.ADD_VALUE || 
                                    modifier.operation() == Operation.ADD_MULTIPLIED_BASE || 
@@ -319,9 +464,9 @@ public class AttributeTooltipHandler {
 
                 if (data.isMerged) {
                     if (isBaseAttribute(attr.value())) {
-                        tooltip.accept(modComponent.withStyle(MERGED_BASE_COLOR)); // Gold
+                        tooltip.accept(modComponent.withStyle(style -> style.withColor(MERGE_BASE_MODIFIER_COLOR)));
                     } else {
-                        tooltip.accept(modComponent.withStyle(style -> style.withColor(MERGED_MODIFIER_COLOR))); // Light Blue
+                        tooltip.accept(modComponent.withStyle(style -> style.withColor(MERGED_MODIFIER_COLOR))); // Light Blue for others
                     }
 
                     if (isDetailedView()) {
@@ -413,7 +558,7 @@ public class AttributeTooltipHandler {
 
         // --- Generate Tooltip Lines & Mark as Handled ---
         MutableComponent mainLine = createBaseComponent(blockRangeAttributeHolder.value(), calculatedValue, playerBaseValue, isModified);
-        tooltip.accept(Component.literal(" ").append(mainLine.withStyle(isModified ? MERGED_BASE_COLOR : BASE_COLOR)));
+        tooltip.accept(Component.literal(" ").append(mainLine.withStyle(isModified ? style -> style.withColor(MERGE_BASE_MODIFIER_COLOR) : style -> style.applyFormat(BASE_COLOR))));
 
         if (isDetailedView() && isModified) {
             MutableComponent baseLine = createBaseComponent(blockRangeAttributeHolder.value(), playerBaseValue, playerBaseValue, false);
@@ -610,4 +755,12 @@ public class AttributeTooltipHandler {
             this.slot = slot;
         }
     }
+
+    /**
+     * Represents the result of tooltip processing
+     */
+    public record ProcessingResult(boolean modified, @Nullable Component finalHeader) {
+        static final ProcessingResult NO_CHANGE = new ProcessingResult(false, null);
+    }
+
 }

@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.muon.dynamictooltips.AttributeTooltipHandler;
 import dev.muon.dynamictooltips.EnchantmentTooltipHandler;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Style;
 import java.util.Optional;
+import java.util.ListIterator;
 
 @Mixin(ItemStack.class)
 public class ItemStackMixin {
@@ -42,17 +44,33 @@ public class ItemStackMixin {
         }
 
         ItemStack stack = (ItemStack)(Object)this;
-        AttributeTooltipHandler.processTooltip(stack, tooltip, player);
+
+        AttributeTooltipHandler.ProcessingResult result = AttributeTooltipHandler.processTooltip(stack, tooltip, player);
+
+        // --- Late Cleanup of Extraneous Headers ---
+        if (result.modified() && result.finalHeader() != null) {
+            Component correctHeader = result.finalHeader();
+            ListIterator<Component> iterator = tooltip.listIterator();
+            while (iterator.hasNext()) {
+                Component currentLine = iterator.next();
+                EquipmentSlotGroup slotGroup = AttributeTooltipHandler.getSlotFromText(currentLine);
+                // If this line is an attribute header AND it's NOT the one we kept
+                if (slotGroup != null && !currentLine.equals(correctHeader)) {
+                    iterator.remove(); // Remove the incorrect header
+                }
+            }
+        }
+        // --- End Cleanup ---
 
         if (!Screen.hasShiftDown() && !EnchantmentTooltipHandler.promptAddedThisTick) {
             boolean hasMergedModifiers = false;
-            Integer mergedBaseColor = AttributeTooltipHandler.MERGED_BASE_COLOR.getColor();
+            Integer mergedBaseColorInt = AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR;
             Integer mergedModifierColor = AttributeTooltipHandler.MERGED_MODIFIER_COLOR;
             
             for (Component line : tooltip) {
                 boolean foundColorInLine = line.visit((style, text) -> {
                     Integer color = style.getColor() != null ? style.getColor().getValue() : null;
-                    if (color != null && (color.equals(mergedBaseColor) || color.equals(mergedModifierColor))) {
+                    if (color != null && (color.equals(mergedBaseColorInt) || color.equals(mergedModifierColor))) {
                         return Optional.of(true);
                     }
                     return Optional.empty();

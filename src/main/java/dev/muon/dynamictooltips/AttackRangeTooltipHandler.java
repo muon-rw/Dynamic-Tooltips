@@ -9,14 +9,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -68,7 +66,7 @@ public class AttackRangeTooltipHandler {
 
         if (Screen.hasShiftDown() && hasModifications) {
             // Add expanded lines directly
-            tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange, ChatFormatting.GOLD));
+            tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> style.withColor(AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR)));
             tooltipConsumer.accept(createBaseWeaponRangeComponent(baseWeaponRange, ChatFormatting.DARK_GREEN));
             tracker.applicableModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
             for (AttributeModifier modifier : tracker.applicableModifiers) {
@@ -77,8 +75,14 @@ public class AttackRangeTooltipHandler {
                 }
             }
         } else {
-            tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange,
-                    hasModifications ? ChatFormatting.GOLD : ChatFormatting.DARK_GREEN));
+            // Apply custom gold if modified (collapsed view), otherwise dark green
+            ChatFormatting baseColor = hasModifications ? null : ChatFormatting.DARK_GREEN;
+            Integer customColor = hasModifications ? AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR : null;
+            tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> {
+                if (customColor != null) return style.withColor(customColor);
+                if (baseColor != null) return style.withColor(baseColor);
+                return style; // Should not happen
+            }));
         }
 
         // Mark Entity Interaction Range as handled so it doesn't get displayed again by the main handler
@@ -138,7 +142,8 @@ public class AttackRangeTooltipHandler {
             addViewedItemModifiers(stack, tracker);
         }
         double modifierContribution = tracker.currentTrackedValue - tracker.initialBaseReach;
-        double finalRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus() + modifierContribution;
+        // Ensure we add the attribute base range correctly
+        double finalRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus() + (tracker.currentTrackedValue - Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue());
         return finalRange;
     }
 
@@ -159,9 +164,9 @@ public class AttackRangeTooltipHandler {
         });
     }
 
-    private static MutableComponent createTotalRangeComponent(double range, ChatFormatting color) {
+    private static MutableComponent createTotalRangeComponent(double range) {
         String rangeAttrName = "attribute.name.generic.attack_range";
-        return Component.literal(" ").append(Component.translatable("attribute.modifier.equals.0", FORMAT.format(range), Component.translatable(rangeAttrName))).withStyle(color);
+        return Component.literal(" ").append(Component.translatable("attribute.modifier.equals.0", FORMAT.format(range), Component.translatable(rangeAttrName)));
     }
     private static MutableComponent createBaseWeaponRangeComponent(double value, ChatFormatting color) {
         String rangeAttrName = "attribute.name.generic.attack_range";

@@ -49,6 +49,8 @@ dependencies {
 
 	modImplementation "curse.maven:better-combat-by-daedelus-639842:6097300"
 	modLocalRuntime "curse.maven:playeranimator-658587:6024464"
+
+	modImplementation "curse.maven:ranged-weapon-api-962162:6077072"
 }
 
 processResources {
