@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.Set;
 import net.minecraft.core.Holder;
+import dev.muon.dynamictooltips.AttributeTooltipHandler.TooltipApplyResult;
 
 /**
  * Handles adding a dynamic Attack Range tooltip, integrating with Better Combat
@@ -39,7 +40,7 @@ public class AttackRangeTooltipHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("DynamicTooltips-AttackRange");
     private static final DecimalFormat FORMAT = new DecimalFormat("#.##", new DecimalFormatSymbols(Locale.ROOT));
 
-    public static void appendAttackRangeLines(ItemStack stack, Consumer<Component> tooltipConsumer, @Nullable Player player, Set<Holder<Attribute>> handledAttributes) {
+    public static void appendAttackRangeLines(ItemStack stack, Consumer<Component> tooltipConsumer, @Nullable Player player, TooltipApplyResult result) {
         if (!(FabricLoader.getInstance().isModLoaded("bettercombat")) || !BetterCombatClientMod.config.isTooltipAttackRangeEnabled) {
             return;
         }
@@ -64,6 +65,8 @@ public class AttackRangeTooltipHandler {
         double baseWeaponRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus();
         boolean hasModifications = Math.abs(totalCalculatedRange - baseWeaponRange) > 1e-4;
 
+        result.needsShiftPrompt |= hasModifications;
+
         if (Screen.hasShiftDown() && hasModifications) {
             // Add expanded lines directly
             tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> style.withColor(AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR)));
@@ -86,7 +89,7 @@ public class AttackRangeTooltipHandler {
         }
 
         // Mark Entity Interaction Range as handled so it doesn't get displayed again by the main handler
-        handledAttributes.add(Attributes.ENTITY_INTERACTION_RANGE);
+        result.handledAttributes.add(Attributes.ENTITY_INTERACTION_RANGE);
     }
 
     private static class ModifierTracker {

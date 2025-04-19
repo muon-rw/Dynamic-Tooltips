@@ -20,12 +20,11 @@ import net.minecraft.world.item.TooltipFlag;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Style;
-import java.util.Optional;
 import java.util.ListIterator;
 
 @Mixin(ItemStack.class)
 public class ItemStackMixin {
+    // Reset the shift prompt flag at the beginning of tooltip generation for each item
     @Inject(
             method = "getTooltipLines(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;)Ljava/util/List;",
             at = @At("HEAD")
@@ -34,6 +33,7 @@ public class ItemStackMixin {
         EnchantmentTooltipHandler.promptAddedThisTick = false;
     }
 
+    // Modify the final tooltip list after all vanilla processing
     @ModifyReturnValue(
             method = "getTooltipLines",
             at = @At("RETURN")
@@ -45,51 +45,35 @@ public class ItemStackMixin {
 
         ItemStack stack = (ItemStack)(Object)this;
 
+        // Process attributes first, potentially modifying the tooltip and getting the result
         AttributeTooltipHandler.ProcessingResult result = AttributeTooltipHandler.processTooltip(stack, tooltip, player);
 
-        // --- Late Cleanup of Extraneous Headers ---
+        // Clean up any original attribute headers that might remain if attributes were merged
         if (result.modified() && result.finalHeader() != null) {
             Component correctHeader = result.finalHeader();
             ListIterator<Component> iterator = tooltip.listIterator();
             while (iterator.hasNext()) {
                 Component currentLine = iterator.next();
                 EquipmentSlotGroup slotGroup = AttributeTooltipHandler.getSlotFromText(currentLine);
-                // If this line is an attribute header AND it's NOT the one we kept
                 if (slotGroup != null && !currentLine.equals(correctHeader)) {
-                    iterator.remove(); // Remove the incorrect header
+                    iterator.remove();
                 }
             }
         }
-        // --- End Cleanup ---
 
+        // Add shift prompt if attribute processing indicated merging occurred,
+        // but only if the enchantment handler didn't already add one.
         if (!Screen.hasShiftDown() && !EnchantmentTooltipHandler.promptAddedThisTick) {
-            boolean hasMergedModifiers = false;
-            Integer mergedBaseColorInt = AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR;
-            Integer mergedModifierColor = AttributeTooltipHandler.MERGED_MODIFIER_COLOR;
-            
-            for (Component line : tooltip) {
-                boolean foundColorInLine = line.visit((style, text) -> {
-                    Integer color = style.getColor() != null ? style.getColor().getValue() : null;
-                    if (color != null && (color.equals(mergedBaseColorInt) || color.equals(mergedModifierColor))) {
-                        return Optional.of(true);
-                    }
-                    return Optional.empty();
-                }, Style.EMPTY).orElse(false);
-
-                if (foundColorInLine) {
-                    hasMergedModifiers = true;
-                    break;
-                }
-            }
-            
-            if (hasMergedModifiers) {
+            if (result.needsShiftPrompt()) {
                 tooltip.add(EnchantmentTooltipHandler.SHIFT_PROMPT);
+                EnchantmentTooltipHandler.promptAddedThisTick = true;
             }
         }
 
         return tooltip;
     }
 
+    // Inject before vanilla enchantment tooltips are added to set up context
     @Inject(
             method = "getTooltipLines(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;)Ljava/util/List;",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;addToTooltip(Lnet/minecraft/core/component/DataComponentType;Lnet/minecraft/world/item/Item$TooltipContext;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;)V", ordinal = 2)
@@ -98,6 +82,7 @@ public class ItemStackMixin {
         EnchantmentTooltipHandler.getInstance().setupContext((ItemStack) (Object) this);
     }
 
+    // Inject after vanilla enchantment tooltips to revert context and potentially add shift prompt
     @Inject(
             method = "getTooltipLines(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;)Ljava/util/List;",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;addToTooltip(Lnet/minecraft/core/component/DataComponentType;Lnet/minecraft/world/item/Item$TooltipContext;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;)V", ordinal = 3, shift = At.Shift.AFTER)
@@ -106,6 +91,7 @@ public class ItemStackMixin {
         ItemStack stack = (ItemStack) (Object) this;
         EnchantmentTooltipHandler.getInstance().revertContext(stack);
 
+        // Add shift prompt if enchantments are expandable and one hasn't been added yet
         if (!Screen.hasShiftDown() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
             if (!EnchantmentTooltipHandler.promptAddedThisTick) {
                 list.add(EnchantmentTooltipHandler.SHIFT_PROMPT);
