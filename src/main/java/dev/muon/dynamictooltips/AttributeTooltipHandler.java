@@ -53,8 +53,6 @@ public class AttributeTooltipHandler {
     static final ChatFormatting BASE_COLOR = ChatFormatting.DARK_GREEN;
     public static final int MERGE_BASE_MODIFIER_COLOR = 16758784; // Gold
     public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
-    static final ChatFormatting POSITIVE_COLOR = ChatFormatting.BLUE; // Used as fallback if getStyle isn't available
-    static final ChatFormatting NEGATIVE_COLOR = ChatFormatting.RED; // Used as fallback if getStyle isn't available
 
     // --- Custom Attribute Color Logic ---
     private enum ColorLogic {
@@ -69,14 +67,9 @@ public class AttributeTooltipHandler {
     private static final ResourceLocation HITBOX_HEIGHT_ID = ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "hitbox_height");
 
     private static final Map<ResourceLocation, AttributeColorRule> ATTRIBUTE_COLOR_RULES = Util.make(new HashMap<>(), map -> {
-        // Example: Override vanilla GRAVITY to be fixed RED instead of neutral GRAY
-        // map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.GRAVITY.value()), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.RED));
-
-        // Example: Define rule for a modded attribute (if it lacks correct sentiment or needs override)
+        // TODO: Populate this map if needed, or add user config
         map.put(HITBOX_HEIGHT_ID, new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-
-        // Add more rules here as needed
-        map.remove(null); // Clean up potential null key from BuiltInRegistries
+        map.remove(null);
     });
     // --- End Custom Color Logic ---
 
@@ -104,18 +97,17 @@ public class AttributeTooltipHandler {
         map.remove(null);
     });
 
-    // Attributes that should be treated as the "base" for merging purposes
+    // Attributes that should be treated as "base" modifiers: Display a base value as green, gold when merged
     private static final Set<ResourceLocation> BASE_ATTRIBUTE_IDS = Util.make(new HashSet<>(), set -> {
         set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_DAMAGE.value()));
         set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_SPEED.value()));
         set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ENTITY_INTERACTION_RANGE.value()));
-        // Include RWA base attributes if present
         set.add(ResourceLocation.fromNamespaceAndPath("ranged_weapon", "damage"));
         set.add(ResourceLocation.fromNamespaceAndPath("ranged_weapon", "pull_time"));
         set.remove(null);
     });
 
-    // Mapping from base attributes to their corresponding base modifier UUIDs
+    // TODO: Can these be inferred safely?
     private static final Map<ResourceLocation, ResourceLocation> BASE_MODIFIER_IDS = Util.make(new HashMap<>(), map -> {
         map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_DAMAGE.value()), Item.BASE_ATTACK_DAMAGE_ID);
         map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_SPEED.value()), Item.BASE_ATTACK_SPEED_ID);
@@ -266,7 +258,7 @@ public class AttributeTooltipHandler {
         if (FabricLoader.getInstance().isModLoaded("ranged_weapon_api")) {
             Item item = stack.getItem();
             if (item instanceof CustomRangedWeapon customRangedWeapon && (slot == EquipmentSlotGroup.MAINHAND || slot == EquipmentSlotGroup.HAND)) {
-                // RWA applies base damage/pull time differently, manually add them if not already present
+                // Manually add RWA attrs to the tooltip of relevant weapons if not already present
                 boolean hasBaseDamage = map.values().stream().anyMatch(mod -> mod.id().equals(AttributeModifierIDs.WEAPON_DAMAGE_ID));
                 if (!hasBaseDamage) {
                     try {
@@ -302,7 +294,6 @@ public class AttributeTooltipHandler {
     }
 
     // Helper class to track results of applyTextFor
-    // Make public so it can be accessed by AttackRangeTooltipHandler
     public static class TooltipApplyResult {
         boolean needsShiftPrompt = false;
         Set<Holder<Attribute>> handledAttributes = new HashSet<>();
@@ -551,18 +542,15 @@ public class AttributeTooltipHandler {
         }
 
         boolean shouldShowRange = false;
-        // Show block interaction range if the item has an attack speed modifier (like tools)
-        // unless BetterCombat handles it (non-null weaponAttributes)
-        boolean itemHasAttackSpeed = itemModifiers.keySet().stream()
-            .anyMatch(attrHolder -> attrHolder.value() == Attributes.ATTACK_SPEED.value());
 
         if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
+            boolean itemHasAttackSpeed = itemModifiers.keySet().stream()
+                    .anyMatch(attrHolder -> attrHolder.value() == Attributes.ATTACK_SPEED.value());
             WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
             if (itemHasAttackSpeed && weaponAttributes == null) {
                 shouldShowRange = true;
             }
         } else {
-            // Show if item is a DiggerItem (non-BC case)
             if (stack.getItem() instanceof DiggerItem) {
                 shouldShowRange = true;
             }
@@ -577,7 +565,6 @@ public class AttributeTooltipHandler {
 
         // Recalculate the value considering all applied modifiers
         double finalCalculatedValue = playerBaseValue;
-        double valueForBaseMult = playerBaseValue;
 
         List<AttributeModifier> addValueMods = new ArrayList<>();
         for (AttributeModifier mod : allAppliedModifiers) {
@@ -586,12 +573,11 @@ public class AttributeTooltipHandler {
                 if (mod.amount() != 0) addValueMods.add(mod);
             }
         }
-        double valueAfterAdd = finalCalculatedValue;
 
         List<AttributeModifier> multBaseMods = new ArrayList<>();
         for (AttributeModifier mod : allAppliedModifiers) {
             if (mod.operation() == Operation.ADD_MULTIPLIED_BASE) {
-                finalCalculatedValue += valueForBaseMult * mod.amount();
+                finalCalculatedValue += playerBaseValue * mod.amount();
                  if (mod.amount() != 0) multBaseMods.add(mod);
             }
         }
@@ -616,9 +602,8 @@ public class AttributeTooltipHandler {
          Integer intColor = isModified ? MERGE_BASE_MODIFIER_COLOR : null;
          tooltip.accept(Component.literal(" ").append(mainLine.withStyle(style -> {
               if (intColor != null) return style.withColor(intColor);
-              if (color != null) return style.applyFormat(color);
-              return style;
-          })));
+             return style.applyFormat(color);
+         })));
 
         if (isDetailedView() && isModified) {
             MutableComponent baseLine = createBaseComponent(blockRangeAttributeHolder.value(), playerBaseValue, playerBaseValue, false);
@@ -653,7 +638,7 @@ public class AttributeTooltipHandler {
                 formattedValue,
                 Component.translatable(attribute.getDescriptionId()));
 
-        // Special handling for the fake merged modifier (always light blue)
+        // Merged Non-base modifiers always light blue
         if (!isBaseAttribute(attribute) && modifier.id().equals(FAKE_MERGED_ID)) {
             return component.withStyle(style -> style.withColor(MERGED_MODIFIER_COLOR));
         }
@@ -713,7 +698,6 @@ public class AttributeTooltipHandler {
         ResourceLocation id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         return id != null && BASE_ATTRIBUTE_IDS.contains(id);
     }
-
 
     private static boolean isBaseModifier(Attribute attribute, AttributeModifier modifier) {
         ResourceLocation baseId = getBaseModifierId(attribute);

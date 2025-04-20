@@ -68,7 +68,6 @@ public class AttackRangeTooltipHandler {
         result.needsShiftPrompt |= hasModifications;
 
         if (Screen.hasShiftDown() && hasModifications) {
-            // Add expanded lines directly
             tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> style.withColor(AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR)));
             tooltipConsumer.accept(createBaseWeaponRangeComponent(baseWeaponRange, ChatFormatting.DARK_GREEN));
             tracker.applicableModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
@@ -78,13 +77,12 @@ public class AttackRangeTooltipHandler {
                 }
             }
         } else {
-            // Apply custom gold if modified (collapsed view), otherwise dark green
+            // Always a base modifier, so dark green, or gold when merged
             ChatFormatting baseColor = hasModifications ? null : ChatFormatting.DARK_GREEN;
             Integer customColor = hasModifications ? AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR : null;
             tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> {
                 if (customColor != null) return style.withColor(customColor);
-                if (baseColor != null) return style.withColor(baseColor);
-                return style; // Should not happen
+                return style.withColor(baseColor);
             }));
         }
 
@@ -144,8 +142,7 @@ public class AttackRangeTooltipHandler {
             deduplicateHeldItemModifiers(equippedStack, tracker);
             addViewedItemModifiers(stack, tracker);
         }
-        double modifierContribution = tracker.currentTrackedValue - tracker.initialBaseReach;
-        // Ensure we add the attribute base range correctly
+
         double finalRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus() + (tracker.currentTrackedValue - Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue());
         return finalRange;
     }
