@@ -49,12 +49,10 @@ public class AttributeTooltipHandler {
     private static final DecimalFormat FORMAT = new DecimalFormat("#.##", new DecimalFormatSymbols(Locale.ROOT));
     private static final ResourceLocation FAKE_MERGED_ID = ResourceLocation.fromNamespaceAndPath(DynamicTooltips.MODID, "fake_merged_modifier");
 
-    // --- Colors and Formatting ---
     static final ChatFormatting BASE_COLOR = ChatFormatting.DARK_GREEN;
     public static final int MERGE_BASE_MODIFIER_COLOR = 16758784; // Gold
     public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
 
-    // --- Custom Attribute Color Logic ---
     private enum ColorLogic {
         DEFAULT, // Use the attribute's default sentiment coloring via getStyle()
         INVERTED, // Invert the attribute's default sentiment coloring
@@ -63,17 +61,21 @@ public class AttributeTooltipHandler {
 
     private record AttributeColorRule(ColorLogic logic, @Nullable ChatFormatting fixedColor) {}
 
-    // Map for attribute color rules (vanilla overrides or modded definitions)
-    private static final ResourceLocation HITBOX_HEIGHT_ID = ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "hitbox_height");
-
+    // Map for attribute color rule overrides
+    // TODO: Populate this map if needed, or add user config
     private static final Map<ResourceLocation, AttributeColorRule> ATTRIBUTE_COLOR_RULES = Util.make(new HashMap<>(), map -> {
-        // TODO: Populate this map if needed, or add user config
-        map.put(HITBOX_HEIGHT_ID, new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.hitbox_height"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.hitbox_width"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.model_height"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.model_width"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.height"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.width"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.model_scale"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
+
+        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.mob_detection_range"), new AttributeColorRule(ColorLogic.INVERTED, null));
         map.remove(null);
     });
-    // --- End Custom Color Logic ---
 
-    // --- Comparators and Utility Maps ---
     static final Comparator<AttributeModifier> ATTRIBUTE_MODIFIER_COMPARATOR =
             Comparator.comparing(AttributeModifier::operation)
                     .thenComparing((AttributeModifier a) -> -Math.abs(a.amount()))
