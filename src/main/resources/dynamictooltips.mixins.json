@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "dev.muon.dynamictooltips.mixin.MixinConfigPlugin",
   "mixins": [
+    "EnchantmentMixin",
     "ItemEnchantmentsMixin",
     "ItemStackMixin",
     "compat.bettercombat.WeaponAttributeTooltipMixin"

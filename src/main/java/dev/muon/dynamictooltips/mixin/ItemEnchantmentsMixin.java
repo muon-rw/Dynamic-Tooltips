@@ -16,7 +16,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import net.minecraft.client.gui.screens.Screen;
 
 import java.util.function.Consumer;
 
@@ -42,7 +41,7 @@ public class ItemEnchantmentsMixin implements EnchantmentContext {
     )
     private void dynamictooltips$addDescriptionSorted(Item.TooltipContext context, Consumer<Component> tooltipConsumer, TooltipFlag flag, CallbackInfo ci,
                                                       @Local Holder<Enchantment> enchantment, @Local int level) {
-        if (!this.dynamictooltips$heldStack.isEmpty()) {
+        if (!this.dynamictooltips$heldStack.isEmpty() && EnchantmentTooltipHandler.getInstance().shouldDisplayDescription(this.dynamictooltips$heldStack)) {
             EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, tooltipConsumer);
         }
     }
@@ -53,10 +52,12 @@ public class ItemEnchantmentsMixin implements EnchantmentContext {
     )
     private void dynamictooltips$addDescriptionUnsorted(Item.TooltipContext context, Consumer<Component> tooltipConsumer, TooltipFlag flag, CallbackInfo ci,
                                                         @Local Object2IntMap.Entry<Holder<Enchantment>> entry) {
-        if (!this.dynamictooltips$heldStack.isEmpty()) {
-            Holder<Enchantment> enchantment = entry.getKey();
-            int level = entry.getIntValue();
-            EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, tooltipConsumer);
+        if (!this.dynamictooltips$heldStack.isEmpty() && EnchantmentTooltipHandler.getInstance().shouldDisplayDescription(this.dynamictooltips$heldStack)) {
+            if (entry != null) {
+                Holder<Enchantment> enchantment = entry.getKey();
+                int level = entry.getIntValue();
+                EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, tooltipConsumer);
+            }
         }
     }
 }

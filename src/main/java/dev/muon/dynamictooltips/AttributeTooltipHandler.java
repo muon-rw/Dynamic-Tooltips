@@ -192,6 +192,16 @@ public class AttributeTooltipHandler {
             newTooltip.add(tooltip.get(currentOriginalIndex++));
         }
 
+        // --- Add "Two-Handed" line if applicable (Better Combat Integration) ---
+        // Necessary because we cancel the original two-handed injection with a mixin
+        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
+            WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
+            if (weaponAttributes != null && weaponAttributes.isTwoHanded()) {
+                newTooltip.add(Component.translatable("item.held.two_handed").withStyle(ChatFormatting.GRAY));
+            }
+        }
+        // --- End Better Combat Integration ---
+
         Component finalHeader = getHeaderForSlotGroup(groupForHeader);
         newTooltip.add(finalHeader);
 
