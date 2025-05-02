@@ -76,7 +76,7 @@ public class AttributeTooltipHandler {
         map.remove(null);
     });
 
-    static final Comparator<AttributeModifier> ATTRIBUTE_MODIFIER_COMPARATOR =
+    public static final Comparator<AttributeModifier> ATTRIBUTE_MODIFIER_COMPARATOR =
             Comparator.comparing(AttributeModifier::operation)
                     .thenComparing((AttributeModifier a) -> -Math.abs(a.amount()))
                     .thenComparing(AttributeModifier::id);
@@ -330,9 +330,6 @@ public class AttributeTooltipHandler {
         processBaseModifiers(stack, tooltip, player, baseModifiers, result);
         processRemainingModifiers(stack, tooltip, player, modifierMap, remainingModifiers, baseModifiers.keySet(), result);
 
-        // Block Interaction Range tooltip is appended separately as it depends on player state
-        appendBlockInteractionRangeTooltip(stack, tooltip, player, EquipmentSlotGroup.MAINHAND, modifierMap, result);
-
         return result;
     }
 
@@ -421,6 +418,8 @@ public class AttributeTooltipHandler {
 
             result.handledAttributes.add(attr);
         }
+        
+        BlockRangeTooltipHandler.appendBlockRangeLines(stack, tooltip, player, result);
     }
 
 
@@ -458,7 +457,8 @@ public class AttributeTooltipHandler {
             Holder<Attribute> attr = entry.getKey();
             Collection<AttributeModifier> modifiers = entry.getValue();
 
-            if (result.handledAttributes.contains(attr)) {
+            // Skip if already handled OR if it's Block Interaction Range (handled separately later)
+            if (result.handledAttributes.contains(attr) || attr.value() == Attributes.BLOCK_INTERACTION_RANGE.value()) {
                   continue;
             }
             if (modifiers.isEmpty()) continue;
@@ -532,104 +532,6 @@ public class AttributeTooltipHandler {
     }
 
 
-    private static void appendBlockInteractionRangeTooltip(
-            ItemStack stack,
-            Consumer<Component> tooltip,
-            @Nullable Player player,
-            EquipmentSlotGroup slot,
-            Multimap<Holder<Attribute>, AttributeModifier> itemModifiers,
-            TooltipApplyResult result) {
-
-        if (!(player instanceof LocalPlayer localPlayer)) return;
-        Holder<Attribute> blockRangeAttributeHolder = Attributes.BLOCK_INTERACTION_RANGE;
-
-        if (result.handledAttributes.contains(blockRangeAttributeHolder)) {
-            return;
-        }
-
-        AttributeInstance blockRangeInstance = localPlayer.getAttribute(blockRangeAttributeHolder);
-        if (blockRangeInstance == null) {
-            LOGGER.warn("Player {} missing attribute instance for {}", localPlayer.getName().getString(), BuiltInRegistries.ATTRIBUTE.getKey(blockRangeAttributeHolder.value()));
-            return;
-        }
-
-        boolean shouldShowRange = false;
-
-        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
-            boolean itemHasAttackSpeed = itemModifiers.keySet().stream()
-                    .anyMatch(attrHolder -> attrHolder.value() == Attributes.ATTACK_SPEED.value());
-            WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
-            if (itemHasAttackSpeed && weaponAttributes == null) {
-                shouldShowRange = true;
-            }
-        } else {
-            if (stack.getItem() instanceof DiggerItem) {
-                shouldShowRange = true;
-            }
-        }
-
-        if (!shouldShowRange) return;
-
-        // --- Calculate Final Range & Collect Modifiers ---
-        double playerBaseValue = blockRangeInstance.getBaseValue();
-        List<AttributeModifier> relevantModifiers = new ArrayList<>();
-        Collection<AttributeModifier> allAppliedModifiers = blockRangeInstance.getModifiers();
-
-        // Recalculate the value considering all applied modifiers
-        double finalCalculatedValue = playerBaseValue;
-
-        List<AttributeModifier> addValueMods = new ArrayList<>();
-        for (AttributeModifier mod : allAppliedModifiers) {
-            if (mod.operation() == Operation.ADD_VALUE) {
-                finalCalculatedValue += mod.amount();
-                if (mod.amount() != 0) addValueMods.add(mod);
-            }
-        }
-
-        List<AttributeModifier> multBaseMods = new ArrayList<>();
-        for (AttributeModifier mod : allAppliedModifiers) {
-            if (mod.operation() == Operation.ADD_MULTIPLIED_BASE) {
-                finalCalculatedValue += playerBaseValue * mod.amount();
-                 if (mod.amount() != 0) multBaseMods.add(mod);
-            }
-        }
-
-        List<AttributeModifier> multTotalMods = new ArrayList<>();
-        for (AttributeModifier mod : allAppliedModifiers) {
-            if (mod.operation() == Operation.ADD_MULTIPLIED_TOTAL) {
-                finalCalculatedValue *= (1.0 + mod.amount());
-                 if (mod.amount() != 0) multTotalMods.add(mod);
-            }
-        }
-
-        relevantModifiers.addAll(addValueMods);
-        relevantModifiers.addAll(multBaseMods);
-        relevantModifiers.addAll(multTotalMods);
-
-        boolean isModified = Math.abs(finalCalculatedValue - playerBaseValue) > 1e-4;
-        result.needsShiftPrompt |= isModified;
-
-        MutableComponent mainLine = createBaseComponent(blockRangeAttributeHolder.value(), finalCalculatedValue, playerBaseValue, isModified);
-         ChatFormatting color = isModified ? null : BASE_COLOR;
-         Integer intColor = isModified ? MERGE_BASE_MODIFIER_COLOR : null;
-         tooltip.accept(Component.literal(" ").append(mainLine.withStyle(style -> {
-              if (intColor != null) return style.withColor(intColor);
-             return style.applyFormat(color);
-         })));
-
-        if (isDetailedView() && isModified) {
-            MutableComponent baseLine = createBaseComponent(blockRangeAttributeHolder.value(), playerBaseValue, playerBaseValue, false);
-            tooltip.accept(listHeader().append(baseLine.withStyle(BASE_COLOR)));
-
-            for (AttributeModifier mod : relevantModifiers) {
-                 tooltip.accept(listHeader().append(createModifierComponent(blockRangeAttributeHolder.value(), mod)));
-            }
-        }
-
-        result.handledAttributes.add(blockRangeAttributeHolder);
-    }
-
-
     private static MutableComponent createBaseComponent(Attribute attribute, double value, double entityBase, boolean merged) {
         return Component.translatable("attribute.modifier.equals.0",
                 FORMAT.format(value),
@@ -637,7 +539,7 @@ public class AttributeTooltipHandler {
     }
 
 
-    private static MutableComponent createModifierComponent(Attribute attribute, AttributeModifier modifier) {
+    public static MutableComponent createModifierComponent(Attribute attribute, AttributeModifier modifier) {
         double value = modifier.amount();
         boolean isPositive = value > 0;
 
@@ -724,7 +626,7 @@ public class AttributeTooltipHandler {
     }
 
 
-    static MutableComponent listHeader() {
+    public static MutableComponent listHeader() {
         return Component.literal(" \u2507 ").withStyle(ChatFormatting.GRAY);
     }
 

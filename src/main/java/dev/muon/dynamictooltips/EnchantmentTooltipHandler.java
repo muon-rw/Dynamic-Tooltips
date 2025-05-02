@@ -17,6 +17,8 @@ import net.minecraft.ChatFormatting;
 
 import java.util.function.Consumer;
 
+import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
+
 public class EnchantmentTooltipHandler {
 
     public static final Component SHIFT_PROMPT = Component.empty()
@@ -66,7 +68,9 @@ public class EnchantmentTooltipHandler {
     }
 
     public static boolean itemHasExpandableEnchantments(ItemStack stack) {
-        return hasEnchantments(stack) && !(stack.getItem() instanceof EnchantedBookItem);
+        return DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() &&
+               hasEnchantments(stack) &&
+               !(stack.getItem() instanceof EnchantedBookItem);
     }
 
     public boolean shouldDisplayDescription(ItemStack stack) {
@@ -76,14 +80,17 @@ public class EnchantmentTooltipHandler {
         if (stack.getItem() instanceof EnchantedBookItem) {
             return true;
         }
-        return Screen.hasShiftDown();
+        return !DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() || Screen.hasShiftDown();
     }
 
     public void insertDescriptions(Holder<Enchantment> enchantment, int level, Consumer<Component> lines) {
         final Component description = getDescription(enchantment, enchantment.unwrapKey().orElseThrow().location(), level);
         if (description != null) {
+            // Use configured hex color, converted to int
+            String hexColor = DynamicTooltipsConfig.CLIENT.enchantmentDescriptionColor.get();
+            int color = Integer.parseInt(hexColor.substring(1), 16);
             Style descriptionStyle = Style.EMPTY
-                    .withColor(net.minecraft.ChatFormatting.DARK_GRAY)
+                    .withColor(color)
                     .withItalic(true);
 
             MutableComponent styledDescription = description.copy().withStyle(descriptionStyle);

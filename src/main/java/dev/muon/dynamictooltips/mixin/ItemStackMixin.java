@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.client.gui.screens.Screen;
 import java.util.ListIterator;
+import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 
 @Mixin(ItemStack.class)
 public class ItemStackMixin {
@@ -63,7 +64,7 @@ public class ItemStackMixin {
 
         // Add shift prompt if attribute processing indicated merging occurred,
         // but only if the enchantment handler didn't already add one.
-        if (!Screen.hasShiftDown() && !EnchantmentTooltipHandler.promptAddedThisTick) {
+        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Screen.hasShiftDown() && !EnchantmentTooltipHandler.promptAddedThisTick) {
             if (result.needsShiftPrompt()) {
                 tooltip.add(EnchantmentTooltipHandler.SHIFT_PROMPT);
                 EnchantmentTooltipHandler.promptAddedThisTick = true;
@@ -92,7 +93,7 @@ public class ItemStackMixin {
         EnchantmentTooltipHandler.getInstance().revertContext(stack);
 
         // Add shift prompt if enchantments are expandable and one hasn't been added yet
-        if (!Screen.hasShiftDown() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
+        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Screen.hasShiftDown() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
             if (!EnchantmentTooltipHandler.promptAddedThisTick) {
                 list.add(EnchantmentTooltipHandler.SHIFT_PROMPT);
                 EnchantmentTooltipHandler.promptAddedThisTick = true;

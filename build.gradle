@@ -26,6 +26,7 @@ repositories {
 		}
 	}
 	maven { url "https://cursemaven.com" }
+	maven { url "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/" }
 }
 
 dependencies {
@@ -37,6 +38,8 @@ dependencies {
 	// mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	modImplementation("fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${project.forge_config_api_version}")
 
 	modImplementation("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.2.0")
 	include("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.2.0")
@@ -97,7 +100,7 @@ publishMods {
 	changelog = new File("$project.rootDir/changelog.md").getText('UTF-8')
 
 	curseforge {
-		projectId = "123456"
+		projectId = "1247062"
 		projectSlug = "dynamic-tooltips"
 		accessToken = providers.environmentVariable("CF_TOKEN")
 		minecraftVersions.add("1.21.1")
@@ -106,7 +109,7 @@ publishMods {
 		serverRequired = false
 	}
 	modrinth {
-		projectId = "dynamic-tooltips"
+		projectId = "yakHVeQt"
 		accessToken = providers.environmentVariable("MODRINTH_TOKEN")
 		minecraftVersions.add("1.21.1")
 	}
