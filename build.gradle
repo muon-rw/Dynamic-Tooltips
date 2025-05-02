@@ -105,6 +105,7 @@ publishMods {
 		accessToken = providers.environmentVariable("CF_TOKEN")
 		minecraftVersions.add("1.21.1")
 		requires("fabric-api")
+		requires("forge-config-api-port-fabric")
 		clientRequired = true
 		serverRequired = false
 	}
@@ -112,5 +113,7 @@ publishMods {
 		projectId = "yakHVeQt"
 		accessToken = providers.environmentVariable("MODRINTH_TOKEN")
 		minecraftVersions.add("1.21.1")
+		requires("fabric-api")
+		requires("forge-config-api-port")
 	}
 }
