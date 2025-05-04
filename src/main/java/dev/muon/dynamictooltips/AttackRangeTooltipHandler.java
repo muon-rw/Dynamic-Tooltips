@@ -3,6 +3,7 @@ package dev.muon.dynamictooltips;
 import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.client.BetterCombatClientMod;
 import net.bettercombat.logic.WeaponRegistry;
+import net.bettercombat.logic.EntityAttributeHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.Screen;
@@ -62,7 +63,18 @@ public class AttackRangeTooltipHandler {
         double baseEntityRange = entityRangeAttr.getBaseValue();
         ModifierTracker tracker = new ModifierTracker(baseEntityRange);
         double totalCalculatedRange = calculateTotalRange(stack, localPlayer, attributes, tracker);
-        double baseWeaponRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus();
+        
+        boolean itemHasEir = EntityAttributeHelper.itemHasRangeAttribute(stack);
+        double baseWeaponRange;
+        if (itemHasEir) {
+            // If item has EIR attribute, its "base" contribution starts from the player's base reach.
+            // The item's EIR modifier(s) will be listed in the breakdown via the tracker.
+            baseWeaponRange = tracker.initialBaseReach;
+        } else {
+            // If item uses rangeBonus, the base contribution is default reach + bonus.
+            baseWeaponRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus();
+        }
+        
         boolean hasModifications = Math.abs(totalCalculatedRange - baseWeaponRange) > 1e-4;
 
         result.needsShiftPrompt |= hasModifications;
@@ -131,7 +143,9 @@ public class AttackRangeTooltipHandler {
     private static double calculateTotalRange(ItemStack stack, LocalPlayer player, WeaponAttributes attributes, ModifierTracker tracker) {
         AttributeInstance reachAttr = player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE);
         if (reachAttr == null) {
-             return Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus();
+             // Fallback: default range + item's range bonus (unless item has EIR attribute)
+             return Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() 
+                 + (EntityAttributeHelper.itemHasRangeAttribute(stack) ? 0 : attributes.rangeBonus());
         }
         for (AttributeModifier modifier : reachAttr.getModifiers()) {
             tracker.addModifier(modifier);
@@ -143,8 +157,18 @@ public class AttackRangeTooltipHandler {
             addViewedItemModifiers(stack, tracker);
         }
 
-        double finalRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus() + (tracker.currentTrackedValue - Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue());
-        return finalRange;
+        // tracker.currentTrackedValue now represents the player's EIR with the viewed item equipped.
+        double playerInteractionRange = tracker.currentTrackedValue;
+
+        if (EntityAttributeHelper.itemHasRangeAttribute(stack)) {
+            // If item has EIR attribute, range is just the player's interaction range (which includes the item's EIR modifier)
+            return playerInteractionRange;
+        } else {
+            // If item does NOT have EIR attribute, range is player's interaction range + item's range bonus
+            // Note: playerInteractionRange already includes player base EIR + player modifiers.
+            // We add the weapon's rangeBonus on top, as per Better Combat logic.
+            return playerInteractionRange + attributes.rangeBonus();
+        }
     }
 
     private static void addViewedItemModifiers(ItemStack stack, ModifierTracker tracker) {

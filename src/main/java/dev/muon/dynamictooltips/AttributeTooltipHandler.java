@@ -39,13 +39,14 @@ import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.logic.WeaponRegistry;
 import net.fabric_extras.ranged_weapon.api.RangedConfig;
 import net.minecraft.world.entity.ai.attributes.Attribute.Sentiment;
+import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 
 
 /**
  * Merged Attribute Modifier tooltips, inspired by NeoForge.
  */
 public class AttributeTooltipHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger("DynamicTooltips-Attributes");
+    private static final Logger LOGGER = DynamicTooltips.LOGGER;
     private static final DecimalFormat FORMAT = new DecimalFormat("#.##", new DecimalFormatSymbols(Locale.ROOT));
     private static final ResourceLocation FAKE_MERGED_ID = ResourceLocation.fromNamespaceAndPath(DynamicTooltips.MODID, "fake_merged_modifier");
 
@@ -53,28 +54,33 @@ public class AttributeTooltipHandler {
     public static final int MERGE_BASE_MODIFIER_COLOR = 16758784; // Gold
     public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
 
-    private enum ColorLogic {
-        DEFAULT, // Use the attribute's default sentiment coloring via getStyle()
-        INVERTED, // Invert the attribute's default sentiment coloring
-        FIXED // Always use a specific color, regardless of sign or sentiment
+    // Lazy-loaded map for parsed config rules
+    private static Map<ResourceLocation, DynamicTooltipsConfig.Client.AttributeColorRule> parsedAttributeColorRules = null;
+
+    // Gets the parsed rule map, initializing it from config on first call
+    private static Map<ResourceLocation, DynamicTooltipsConfig.Client.AttributeColorRule> getParsedAttributeColorRules() {
+        if (parsedAttributeColorRules == null) {
+            parsedAttributeColorRules = new HashMap<>();
+            List<? extends String> ruleStrings = DynamicTooltipsConfig.CLIENT.attributeColorOverrides.get();
+            for (String ruleStr : ruleStrings) {
+                DynamicTooltipsConfig.Client.AttributeColorRule parsedRule = DynamicTooltipsConfig.Client.parseRuleString(ruleStr);
+                if (parsedRule != null) {
+                    parsedAttributeColorRules.put(parsedRule.attributeId(), parsedRule);
+                } else {
+                    LOGGER.warn("Failed to parse attribute color rule from config: {}", ruleStr);
+                }
+            }
+        }
+        return parsedAttributeColorRules;
     }
-
-    private record AttributeColorRule(ColorLogic logic, @Nullable ChatFormatting fixedColor) {}
-
-    // Map for attribute color rule overrides
-    // TODO: Populate this map if needed, or add user config
-    private static final Map<ResourceLocation, AttributeColorRule> ATTRIBUTE_COLOR_RULES = Util.make(new HashMap<>(), map -> {
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.hitbox_height"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.hitbox_width"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.model_height"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.model_width"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.height"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.width"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.model_scale"), new AttributeColorRule(ColorLogic.FIXED, ChatFormatting.GRAY));
-
-        map.put(ResourceLocation.fromNamespaceAndPath("additionalentityattributes", "generic.mob_detection_range"), new AttributeColorRule(ColorLogic.INVERTED, null));
-        map.remove(null);
-    });
+    
+    // Helper to get the rule for a specific attribute
+    @Nullable
+    private static DynamicTooltipsConfig.Client.AttributeColorRule getAttributeColorRule(Attribute attribute) {
+        ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+        if (attrId == null) return null;
+        return getParsedAttributeColorRules().get(attrId);
+    }
 
     public static final Comparator<AttributeModifier> ATTRIBUTE_MODIFIER_COMPARATOR =
             Comparator.comparing(AttributeModifier::operation)
@@ -123,6 +129,24 @@ public class AttributeTooltipHandler {
         return Screen.hasShiftDown();
     }
 
+    // Helper to get modifier IDs (AttributeRL:ModifierUUID) from a multimap
+    private static Set<String> getModifierIdKeys(Multimap<Holder<Attribute>, AttributeModifier> map) {
+        Set<String> keys = new HashSet<>();
+        map.forEach((attrHolder, mod) -> {
+            ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
+            if (attrId != null) {
+                keys.add(attrId + ":" + mod.id());
+            }
+        });
+        return keys;
+    }
+
+    // Helper to check if source map contains any modifier IDs not present in target map
+    private static boolean containsExclusiveModifiers(Multimap<Holder<Attribute>, AttributeModifier> source, Multimap<Holder<Attribute>, AttributeModifier> target) {
+         Set<String> sourceKeys = getModifierIdKeys(source);
+         Set<String> targetKeys = getModifierIdKeys(target);
+         return !targetKeys.containsAll(sourceKeys);
+    }
 
     public static ProcessingResult processTooltip(ItemStack stack, List<Component> tooltip, @Nullable Player player) {
         List<AttributeSection> sections = findAttributeSections(tooltip);
@@ -130,10 +154,8 @@ public class AttributeTooltipHandler {
             return ProcessingResult.NO_CHANGE;
         }
 
-        EquipmentSlotGroup primarySlotGroup = null;
-        Set<EquipmentSlotGroup> additionalSlotGroups = new HashSet<>();
-
-        // Priority order for determining the primary slot group if multiple sections are found
+        EquipmentSlotGroup initialPrimaryGroup = null;
+        // Priority order remains the same
         List<EquipmentSlotGroup> priorityOrder = List.of(
             EquipmentSlotGroup.HEAD, EquipmentSlotGroup.CHEST, EquipmentSlotGroup.LEGS, EquipmentSlotGroup.FEET, // Specific Armor
             EquipmentSlotGroup.MAINHAND,
@@ -145,36 +167,84 @@ public class AttributeTooltipHandler {
         for (EquipmentSlotGroup potentialPrimary : priorityOrder) {
             for (AttributeSection section : sections) {
                 if (section.slot == potentialPrimary) {
-                    primarySlotGroup = potentialPrimary;
+                    initialPrimaryGroup = potentialPrimary;
                     break;
                 }
             }
-            if (primarySlotGroup != null) break;
+            if (initialPrimaryGroup != null) break;
         }
 
-        if (primarySlotGroup == null) {
-             LOGGER.debug("No relevant primary slot group identified from tooltip sections for {}, skipping.", stack.getItem());
+        if (initialPrimaryGroup == null) {
              return ProcessingResult.NO_CHANGE;
         }
 
-        // Include generic ARMOR group if a specific armor slot was the primary
-        if (primarySlotGroup == EquipmentSlotGroup.HEAD ||
-            primarySlotGroup == EquipmentSlotGroup.CHEST ||
-            primarySlotGroup == EquipmentSlotGroup.LEGS ||
-            primarySlotGroup == EquipmentSlotGroup.FEET ||
-            primarySlotGroup == EquipmentSlotGroup.BODY) {
-             additionalSlotGroups.add(EquipmentSlotGroup.ARMOR);
+        // Pre-fetch modifiers for hand slots
+        Multimap<Holder<Attribute>, AttributeModifier> handMods = getSortedModifiers(stack, EquipmentSlotGroup.HAND);
+        Multimap<Holder<Attribute>, AttributeModifier> mainhandMods = getSortedModifiers(stack, EquipmentSlotGroup.MAINHAND);
+        Multimap<Holder<Attribute>, AttributeModifier> offhandMods = getSortedModifiers(stack, EquipmentSlotGroup.OFFHAND);
+
+        EquipmentSlotGroup finalPrimaryGroup = initialPrimaryGroup;
+
+        // === Re-evaluate primary group ===
+        if (initialPrimaryGroup == EquipmentSlotGroup.HAND) {
+            boolean mainhandHasExclusives = !mainhandMods.isEmpty() && containsExclusiveModifiers(mainhandMods, handMods);
+            boolean offhandHasExclusives = !offhandMods.isEmpty() && containsExclusiveModifiers(offhandMods, handMods);
+
+            if (mainhandHasExclusives) {
+                finalPrimaryGroup = EquipmentSlotGroup.MAINHAND;
+            } else if (offhandHasExclusives) {
+                finalPrimaryGroup = EquipmentSlotGroup.OFFHAND;
+            } else {
+                // No exclusives vs HAND, check if MAINHAND/OFFHAND match each other
+                Set<String> mainKeys = getModifierIdKeys(mainhandMods);
+                Set<String> offKeys = getModifierIdKeys(offhandMods);
+                if (!mainKeys.equals(offKeys)) {
+                    // They differ, default to MAINHAND if it's not empty
+                    if (!mainhandMods.isEmpty()) {
+                         finalPrimaryGroup = EquipmentSlotGroup.MAINHAND;
+                    } else if (!offhandMods.isEmpty()) {
+                         // If mainhand is empty but offhand isn't, use offhand
+                         finalPrimaryGroup = EquipmentSlotGroup.OFFHAND;
+                    } // else: both empty or both match -> HAND remains primary
+                    else {
+                         // Removed log
+                    }
+                }
+            }
+        } // else: initialPrimary was MAINHAND or OFFHAND, keep it.
+
+        // === Combine Modifiers based on final primary group ===
+        Multimap<Holder<Attribute>, AttributeModifier> combinedModifiers = LinkedListMultimap.create();
+        if (finalPrimaryGroup == EquipmentSlotGroup.HAND) {
+             combinedModifiers.putAll(handMods);
+             addNonDuplicateModifiers(combinedModifiers, mainhandMods); // Merge mainhand (should be same as offhand)
+        } else if (finalPrimaryGroup == EquipmentSlotGroup.MAINHAND) {
+             combinedModifiers.putAll(mainhandMods);
+             addNonDuplicateModifiers(combinedModifiers, handMods);
+        } else if (finalPrimaryGroup == EquipmentSlotGroup.OFFHAND) {
+             combinedModifiers.putAll(offhandMods);
+             addNonDuplicateModifiers(combinedModifiers, handMods);
+        } else {
+             // For Armor/Body slots, start with their own modifiers
+             combinedModifiers.putAll(getSortedModifiers(stack, finalPrimaryGroup));
         }
 
-        Multimap<Holder<Attribute>, AttributeModifier> combinedModifiers = LinkedListMultimap.create();
-        combinedModifiers.putAll(getSortedModifiers(stack, primarySlotGroup));
+        // === Handle Armor Merging ===
+        Set<EquipmentSlotGroup> additionalSlotGroups = new HashSet<>();
+        if (finalPrimaryGroup == EquipmentSlotGroup.HEAD ||
+            finalPrimaryGroup == EquipmentSlotGroup.CHEST ||
+            finalPrimaryGroup == EquipmentSlotGroup.LEGS ||
+            finalPrimaryGroup == EquipmentSlotGroup.FEET ||
+            finalPrimaryGroup == EquipmentSlotGroup.BODY) {
+             additionalSlotGroups.add(EquipmentSlotGroup.ARMOR);
+        }
 
         for(EquipmentSlotGroup additionalGroup : additionalSlotGroups) {
              Multimap<Holder<Attribute>, AttributeModifier> additionalModifiers = getSortedModifiers(stack, additionalGroup);
              addNonDuplicateModifiers(combinedModifiers, additionalModifiers);
         }
 
-        EquipmentSlotGroup groupForHeader = primarySlotGroup;
+        EquipmentSlotGroup groupForHeader = finalPrimaryGroup; // Use the final group for the header text
 
         if (combinedModifiers.isEmpty()) {
             return ProcessingResult.NO_CHANGE;
@@ -249,8 +319,7 @@ public class AttributeTooltipHandler {
         String key = "item.modifiers." + groupName;
 
         if (!key.startsWith("item.modifiers.")) { 
-             LOGGER.warn("Generated invalid key for EquipmentSlotGroup header: {} from group {}", key, group);
-             key = "item.modifiers.body"; // Fallback to "When Worn:"
+             return Component.translatable(key).withStyle(ChatFormatting.GRAY);
         }
 
         return Component.translatable(key).withStyle(ChatFormatting.GRAY);
@@ -265,42 +334,6 @@ public class AttributeTooltipHandler {
                 map.put(attributeHolder, modifier);
             }
         });
-
-        // --- Ranged Weapon API Integration ---
-        if (FabricLoader.getInstance().isModLoaded("ranged_weapon_api")) {
-            Item item = stack.getItem();
-            if (item instanceof CustomRangedWeapon customRangedWeapon && (slot == EquipmentSlotGroup.MAINHAND || slot == EquipmentSlotGroup.HAND)) {
-                // Manually add RWA attrs to the tooltip of relevant weapons if not already present
-                boolean hasBaseDamage = map.values().stream().anyMatch(mod -> mod.id().equals(AttributeModifierIDs.WEAPON_DAMAGE_ID));
-                if (!hasBaseDamage) {
-                    try {
-                        RangedConfig config = customRangedWeapon.getTypeBaseline();
-                        double baseDamage = config.damage();
-                        if (baseDamage != 0) {
-                            Holder<Attribute> damageAttr = EntityAttributes_RangedWeapon.DAMAGE.entry;
-                            AttributeModifier baseDamageMod = new AttributeModifier(AttributeModifierIDs.WEAPON_DAMAGE_ID, baseDamage, Operation.ADD_VALUE);
-                            map.put(damageAttr, baseDamageMod);
-                        }
-                    } catch (Exception e) {
-                         LOGGER.warn("Failed to get RWA base damage for {}: {}", stack, e.getMessage());
-                    }
-                }
-
-                boolean hasBasePullTime = map.values().stream().anyMatch(mod -> mod.id().equals(AttributeModifierIDs.WEAPON_PULL_TIME_ID));
-                 if (!hasBasePullTime) {
-                     try {
-                         RangedConfig config = customRangedWeapon.getTypeBaseline();
-                         double pullTimeBonus = config.pull_time_bonus();
-                         Holder<Attribute> pullTimeAttr = EntityAttributes_RangedWeapon.PULL_TIME.entry;
-                         AttributeModifier basePullTimeMod = new AttributeModifier(AttributeModifierIDs.WEAPON_PULL_TIME_ID, pullTimeBonus, Operation.ADD_VALUE);
-                         map.put(pullTimeAttr, basePullTimeMod);
-                     } catch (Exception e) {
-                         LOGGER.warn("Failed to get RWA base pull time for {}: {}", stack, e.getMessage());
-                     }
-                 }
-            }
-        }
-        // --- End RWA Integration ---
 
         return map;
     }
@@ -557,37 +590,54 @@ public class AttributeTooltipHandler {
             return component.withStyle(style -> style.withColor(MERGED_MODIFIER_COLOR));
         }
 
-        // Determine color based on override map, attribute sentiment, or default logic
         ChatFormatting color = ChatFormatting.WHITE; // Default fallback
         ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         boolean handledByRule = false;
+        Integer fixedColorInt = null; // For parsed hex color
 
-        // 1. Check override map first
-        if (attrId != null) {
-            AttributeColorRule rule = ATTRIBUTE_COLOR_RULES.get(attrId);
-            if (rule != null) {
-                handledByRule = true;
-                switch (rule.logic()) {
-                    case FIXED:
-                        color = rule.fixedColor() != null ? rule.fixedColor() : ChatFormatting.GRAY;
-                        break;
-                    case INVERTED:
-                        color = attribute.getStyle(!isPositive);
-                        break;
-                    case DEFAULT:
-                    default:
-                         handledByRule = false;
-                         break;
-                }
+        // 1. Check config map first
+        DynamicTooltipsConfig.Client.AttributeColorRule rule = getAttributeColorRule(attribute);
+        if (rule != null) {
+            handledByRule = true;
+            switch (rule.logic()) {
+                case FIXED:
+                    try {
+                         // Parse hex color stored in the rule
+                         if (rule.hexColor() != null) {
+                             fixedColorInt = Integer.parseInt(rule.hexColor().substring(1), 16);
+                         } else {
+                              LOGGER.warn("FIXED color rule for {} missing hex color string.", rule.attributeId());
+                              handledByRule = false; // Fallback to default
+                         }
+                    } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
+                        LOGGER.warn("Invalid hex color format in config rule for {}: '{}'", rule.attributeId(), rule.hexColor(), e);
+                        handledByRule = false; // Fallback to default
+                    }
+                    // If parsing succeeded, color will be applied via withColor(fixedColorInt)
+                    break;
+                case INVERTED:
+                    color = attribute.getStyle(!isPositive);
+                    break;
             }
         }
 
-        // 2. If not handled by a specific rule (or rule was DEFAULT), use the attribute's own style method
+        // 2. If not handled by a specific rule (or rule was DEFAULT or FIXED failed), use the attribute's own style method
         if (!handledByRule) {
             color = attribute.getStyle(isPositive);
         }
 
-        return component.withStyle(color);
+        // Make the final resolved color int final *after* the switch
+        final Integer finalFixedColorInt = fixedColorInt;
+
+        // Apply color
+        if (finalFixedColorInt != null) {
+            // Use the final variable
+            return component.withStyle(style -> style.withColor(finalFixedColorInt));
+        } else {
+            // Otherwise, apply the calculated ChatFormatting
+            final ChatFormatting finalColor = color; // Use final here too for consistency
+            return component.withStyle(style -> style.applyFormat(finalColor));
+        }
     }
 
 

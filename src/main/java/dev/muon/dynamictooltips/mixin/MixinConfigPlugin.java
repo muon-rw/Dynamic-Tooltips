@@ -14,6 +14,7 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
     @Override
     public void onLoad(String mixinPackage) {
         MixinCancellerRegistrar.register(new DynamicTooltipsMixinCanceller());
+        MixinAnnotationAdjusterRegistrar.register(new DynamicTooltipsMixinAdjuster());
     }
 
     @Override

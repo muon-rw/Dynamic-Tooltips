@@ -1,3 +1,8 @@
+## 0.4.0
+- Fix incorrect calculation of Attack Range for weapons that have WeaponAttributes *and* entity interaction range modifiers
+- More intelligently merge modifiers for gear that contains both HAND *and* MAINHAND/OFFHAND modifiers 
+- Made Attribute sentiment overrides (color based on whether positive/negative modifiers for the attribute are red/blue) configurable
+
 ## 0.3.0
 - Configurable Settings! *Now requires Forge Config API Port*
 - Toggle appending the usability hint (Shift to expand tooltip line)
