@@ -1,3 +1,6 @@
+## 0.4.1 
+- Fix an inconsistency with modifier ordering that led to slightly incorrect total merged values
+
 ## 0.4.0
 - Fix incorrect calculation of Attack Range for weapons that have WeaponAttributes *and* entity interaction range modifiers
 - More intelligently merge modifiers for gear that contains both HAND *and* MAINHAND/OFFHAND modifiers 

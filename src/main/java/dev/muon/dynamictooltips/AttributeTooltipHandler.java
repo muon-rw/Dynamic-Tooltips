@@ -417,6 +417,9 @@ public class AttributeTooltipHandler {
             double rawBaseValue = baseValueFromModifier + entityBase;
             double finalValue = rawBaseValue;
 
+            // Sort children by operation to ensure correct calculation order
+            baseModifier.children.sort(ATTRIBUTE_MODIFIER_COMPARATOR);
+
             for (AttributeModifier childModifier : baseModifier.children) {
                 finalValue = applyModifier(finalValue, rawBaseValue, childModifier);
             }
@@ -437,7 +440,8 @@ public class AttributeTooltipHandler {
                 text = createBaseComponent(attr.value(), rawBaseValue, entityBase, false);
                 tooltip.accept(listHeader().append(text.withStyle(BASE_COLOR)));
 
-                baseModifier.children.sort(ATTRIBUTE_MODIFIER_COMPARATOR);
+                // Children are already sorted by ATTRIBUTE_MODIFIER_COMPARATOR above
+                // baseModifier.children.sort(ATTRIBUTE_MODIFIER_COMPARATOR); // This sort is now redundant
                 for (AttributeModifier modifier : baseModifier.children) {
                     tooltip.accept(listHeader().append(createModifierComponent(attr.value(), modifier)));
                 }
