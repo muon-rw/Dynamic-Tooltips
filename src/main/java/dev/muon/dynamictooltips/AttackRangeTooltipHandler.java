@@ -6,10 +6,10 @@ import net.bettercombat.logic.WeaponRegistry;
 import net.bettercombat.logic.EntityAttributeHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -28,9 +28,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.Set;
-import net.minecraft.core.Holder;
 import dev.muon.dynamictooltips.AttributeTooltipHandler.TooltipApplyResult;
+import dev.muon.dynamictooltips.Keybindings;
 
 /**
  * Handles adding a dynamic Attack Range tooltip, integrating with Better Combat
@@ -55,119 +54,118 @@ public class AttackRangeTooltipHandler {
         }
         WeaponAttributes attributes = attributesOpt.get();
 
-        AttributeInstance entityRangeAttr = player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE);
-        if (entityRangeAttr == null) {
+        AttributeInstance entityRangeAttrInstance = player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE);
+        if (entityRangeAttrInstance == null) {
             LOGGER.warn("Player {} has no entity interaction range attribute! Cannot calculate attack range.", player.getName().getString());
             return;
         }
-        double baseEntityRange = entityRangeAttr.getBaseValue();
+        double baseEntityRange = entityRangeAttrInstance.getBaseValue();
         ModifierTracker tracker = new ModifierTracker(baseEntityRange);
-        double totalCalculatedRange = calculateTotalRange(stack, localPlayer, attributes, tracker);
-        
+
+        calculateTotalRange(stack, localPlayer, attributes, tracker, entityRangeAttrInstance);
+        double totalCalculatedRange = tracker.getFinalCalculatedValue();
+
         boolean itemHasEir = EntityAttributeHelper.itemHasRangeAttribute(stack);
-        double baseWeaponRange;
-        if (itemHasEir) {
-            // If item has EIR attribute, its "base" contribution starts from the player's base reach.
-            // The item's EIR modifier(s) will be listed in the breakdown via the tracker.
-            baseWeaponRange = tracker.initialBaseReach;
-        } else {
-            // If item uses rangeBonus, the base contribution is default reach + bonus.
-            baseWeaponRange = Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() + attributes.rangeBonus();
-        }
-        
-        boolean hasModifications = Math.abs(totalCalculatedRange - baseWeaponRange) > 1e-4;
+
+        boolean hasModifications = !tracker.applicableModifiers.isEmpty();
 
         result.needsShiftPrompt |= hasModifications;
 
-        if (Screen.hasShiftDown() && hasModifications) {
+        if (Keybindings.isDetailedView() && hasModifications) {
             tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> style.withColor(AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR)));
-            tooltipConsumer.accept(createBaseWeaponRangeComponent(baseWeaponRange, ChatFormatting.DARK_GREEN));
-            tracker.applicableModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
-            for (AttributeModifier modifier : tracker.applicableModifiers) {
+            
+            double displayedLine2Base = itemHasEir ? tracker.initialBaseReach : (tracker.initialBaseReach + attributes.rangeBonus());
+            tooltipConsumer.accept(createBaseWeaponRangeComponent(displayedLine2Base, ChatFormatting.DARK_GREEN));
+
+            for (AttributeModifier modifier : tracker.applicableModifiers) { 
                 if(modifier.amount() != 0) {
                     tooltipConsumer.accept(createModifierComponent(modifier));
                 }
             }
         } else {
-            // Always a base modifier, so dark green, or gold when merged
             ChatFormatting baseColor = hasModifications ? null : ChatFormatting.DARK_GREEN;
             Integer customColor = hasModifications ? AttributeTooltipHandler.MERGE_BASE_MODIFIER_COLOR : null;
             tooltipConsumer.accept(createTotalRangeComponent(totalCalculatedRange).withStyle(style -> {
                 if (customColor != null) return style.withColor(customColor);
-                return style.withColor(baseColor);
+                if (baseColor != null) return style.withColor(baseColor);
+                return style; 
             }));
         }
-
-        // Mark Entity Interaction Range as handled so it doesn't get displayed again by the main handler
         result.handledAttributes.add(Attributes.ENTITY_INTERACTION_RANGE);
     }
 
     private static class ModifierTracker {
-        double currentTrackedValue;
+        double currentTrackedValue; 
         final List<AttributeModifier> applicableModifiers = new ArrayList<>();
         final double initialBaseReach;
 
         ModifierTracker(double playerBaseReach) {
             this.initialBaseReach = playerBaseReach;
-            this.currentTrackedValue = playerBaseReach;
+            this.currentTrackedValue = playerBaseReach; 
         }
 
         void addModifier(AttributeModifier modifier) {
             if (modifier.amount() == 0) return;
-            if (applicableModifiers.stream().anyMatch(m -> m.id().equals(modifier.id()))) {
-                return;
-            }
-            applicableModifiers.add(modifier);
-            switch (modifier.operation()) {
-                case ADD_VALUE -> currentTrackedValue += modifier.amount();
-                case ADD_MULTIPLIED_BASE -> currentTrackedValue += initialBaseReach * modifier.amount();
-                case ADD_MULTIPLIED_TOTAL -> currentTrackedValue *= (1.0 + modifier.amount());
-                default -> LOGGER.warn("Unknown modifier operation: {}", modifier.operation());
+            if (applicableModifiers.stream().noneMatch(m -> m.id().equals(modifier.id()))) {
+                applicableModifiers.add(modifier);
             }
         }
 
-        void subtractModifier(AttributeModifier modifierToRemove) {
-            if (modifierToRemove.amount() == 0) return;
-            boolean removed = applicableModifiers.removeIf(m -> m.id().equals(modifierToRemove.id()));
-             if (removed) {
-                 currentTrackedValue = initialBaseReach;
-                 List<AttributeModifier> remaining = new ArrayList<>(applicableModifiers);
-                 applicableModifiers.clear();
-                 remaining.forEach(this::addModifier);
-             } else {
-                  LOGGER.warn("Tried to subtract modifier not present in tracker: {}", modifierToRemove);
-             }
+        void removeModifierById(ResourceLocation id) {
+            applicableModifiers.removeIf(m -> m.id().equals(id));
+        }
+
+        void calculateValue() {
+            applicableModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
+
+            double calculatedValue = initialBaseReach; 
+
+            for (AttributeModifier modifier : applicableModifiers) {
+                if (modifier.operation() == AttributeModifier.Operation.ADD_VALUE) {
+                    calculatedValue += modifier.amount();
+                }
+            }
+
+            double totalFromOp1 = 0;
+            for (AttributeModifier modifier : applicableModifiers) {
+                if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
+                    totalFromOp1 += initialBaseReach * modifier.amount();
+                }
+            }
+            calculatedValue += totalFromOp1;
+
+            for (AttributeModifier modifier : applicableModifiers) {
+                if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
+                    calculatedValue *= (1.0 + modifier.amount());
+                }
+            }
+            this.currentTrackedValue = calculatedValue;
+        }
+
+        double getFinalCalculatedValue() {
+            return this.currentTrackedValue;
         }
     }
 
-    private static double calculateTotalRange(ItemStack stack, LocalPlayer player, WeaponAttributes attributes, ModifierTracker tracker) {
-        AttributeInstance reachAttr = player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE);
-        if (reachAttr == null) {
-             // Fallback: default range + item's range bonus (unless item has EIR attribute)
-             return Attributes.ENTITY_INTERACTION_RANGE.value().getDefaultValue() 
-                 + (EntityAttributeHelper.itemHasRangeAttribute(stack) ? 0 : attributes.rangeBonus());
+    private static void calculateTotalRange(ItemStack stack, LocalPlayer player, WeaponAttributes attributes, ModifierTracker tracker, AttributeInstance reachAttrInstance) {
+        if (reachAttrInstance != null) {
+            for (AttributeModifier modifier : reachAttrInstance.getModifiers()) {
+                tracker.addModifier(modifier);
+            }
         }
-        for (AttributeModifier modifier : reachAttr.getModifiers()) {
-            tracker.addModifier(modifier);
-        }
+
         ItemStack equippedStack = player.getMainHandItem();
         boolean isViewingEquipped = ItemStack.matches(stack, equippedStack);
+
         if (!isViewingEquipped) {
-            deduplicateHeldItemModifiers(equippedStack, tracker);
+            removeEquippedItemModifiers(equippedStack, tracker);
             addViewedItemModifiers(stack, tracker);
         }
 
-        // tracker.currentTrackedValue now represents the player's EIR with the viewed item equipped.
-        double playerInteractionRange = tracker.currentTrackedValue;
+        tracker.calculateValue();
 
-        if (EntityAttributeHelper.itemHasRangeAttribute(stack)) {
-            // If item has EIR attribute, range is just the player's interaction range (which includes the item's EIR modifier)
-            return playerInteractionRange;
-        } else {
-            // If item does NOT have EIR attribute, range is player's interaction range + item's range bonus
-            // Note: playerInteractionRange already includes player base EIR + player modifiers.
-            // We add the weapon's rangeBonus on top, as per Better Combat logic.
-            return playerInteractionRange + attributes.rangeBonus();
+        if (!EntityAttributeHelper.itemHasRangeAttribute(stack)) {
+            tracker.currentTrackedValue += attributes.rangeBonus();
         }
     }
 
@@ -179,11 +177,11 @@ public class AttackRangeTooltipHandler {
         });
     }
 
-    private static void deduplicateHeldItemModifiers(ItemStack equippedStack, ModifierTracker tracker) {
+    private static void removeEquippedItemModifiers(ItemStack equippedStack, ModifierTracker tracker) {
          if (equippedStack.isEmpty()) return;
         equippedStack.forEachModifier(EquipmentSlotGroup.MAINHAND, (attribute, modifier) -> {
             if (attribute.value() == Attributes.ENTITY_INTERACTION_RANGE.value()) {
-                tracker.subtractModifier(modifier);
+                tracker.removeModifierById(modifier.id());
             }
         });
     }

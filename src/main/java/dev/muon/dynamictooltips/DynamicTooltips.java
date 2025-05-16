@@ -20,5 +20,6 @@ public class DynamicTooltips implements ModInitializer {
     @Override
     public void onInitialize() {
         NeoForgeConfigRegistry.INSTANCE.register(MODID, ModConfig.Type.CLIENT, DynamicTooltipsConfig.CLIENT_SPEC);
+        Keybindings.register();
     }
 }

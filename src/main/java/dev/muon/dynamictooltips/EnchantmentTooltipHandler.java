@@ -13,21 +13,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.jetbrains.annotations.Nullable;
-import net.minecraft.ChatFormatting;
 
 import java.util.function.Consumer;
 
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
+import dev.muon.dynamictooltips.Keybindings;
+import dev.muon.dynamictooltips.AttributeTooltipHandler;
 
 public class EnchantmentTooltipHandler {
-
-    public static final Component SHIFT_PROMPT = Component.empty()
-            .append(Component.translatable("tooltip.dynamictooltips.shift_symbol_part")
-                    .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withItalic(false)))
-            .append(Component.translatable("tooltip.dynamictooltips.expand_text_part")
-                    .withStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY).withItalic(true)));
-
-    public static boolean promptAddedThisTick = false;
 
     private static final String[] KEY_TYPES = {"desc", "description", "info"};
     private static EnchantmentTooltipHandler instance;
@@ -39,7 +32,7 @@ public class EnchantmentTooltipHandler {
         return instance;
     }
 
-    private EnchantmentTooltipHandler() {
+    public EnchantmentTooltipHandler() {
     }
 
     public void setupContext(ItemStack stack) {
@@ -80,13 +73,12 @@ public class EnchantmentTooltipHandler {
         if (stack.getItem() instanceof EnchantedBookItem) {
             return true;
         }
-        return !DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() || Screen.hasShiftDown();
+        return !DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() || Keybindings.isDetailedView();
     }
 
     public void insertDescriptions(Holder<Enchantment> enchantment, int level, Consumer<Component> lines) {
         final Component description = getDescription(enchantment, enchantment.unwrapKey().orElseThrow().location(), level);
         if (description != null) {
-            // Use configured hex color, converted to int
             String hexColor = DynamicTooltipsConfig.CLIENT.enchantmentDescriptionColor.get();
             int color = Integer.parseInt(hexColor.substring(1), 16);
             Style descriptionStyle = Style.EMPTY
@@ -101,10 +93,8 @@ public class EnchantmentTooltipHandler {
 
     @Nullable
     private Component getDescription(Holder<Enchantment> enchantment, ResourceLocation id, int level) {
-        // Try specific key first: enchantment.namespace.path.desc
         Component description = findTranslation("enchantment." + id.getNamespace() + "." + id.getPath() + ".", level);
 
-        // Fallback to description key associated with the enchantment name itself
         if (description == null && enchantment.value().description().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents translatable) {
            description = findTranslation(translatable.getKey() + ".", level);
         }

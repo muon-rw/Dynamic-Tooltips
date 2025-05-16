@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.muon.dynamictooltips.AttributeTooltipHandler;
 import dev.muon.dynamictooltips.EnchantmentTooltipHandler;
+import dev.muon.dynamictooltips.TooltipPromptHandler;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,9 +20,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import net.minecraft.client.gui.screens.Screen;
 import java.util.ListIterator;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
+import dev.muon.dynamictooltips.Keybindings;
 
 @Mixin(ItemStack.class)
 public class ItemStackMixin {
@@ -31,7 +32,7 @@ public class ItemStackMixin {
             at = @At("HEAD")
     )
     private void dynamictooltips$resetPromptFlag(Item.TooltipContext context, Player player, TooltipFlag flags, CallbackInfoReturnable<List<Component>> cir) {
-        EnchantmentTooltipHandler.promptAddedThisTick = false;
+        TooltipPromptHandler.promptAddedThisTick = false;
     }
 
     // Modify the final tooltip list after all vanilla processing
@@ -62,12 +63,10 @@ public class ItemStackMixin {
             }
         }
 
-        // Add shift prompt if attribute processing indicated merging occurred,
-        // but only if the enchantment handler didn't already add one.
-        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Screen.hasShiftDown() && !EnchantmentTooltipHandler.promptAddedThisTick) {
+        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Keybindings.isDetailedView() && !TooltipPromptHandler.promptAddedThisTick) {
             if (result.needsShiftPrompt()) {
-                tooltip.add(EnchantmentTooltipHandler.SHIFT_PROMPT);
-                EnchantmentTooltipHandler.promptAddedThisTick = true;
+                tooltip.add(TooltipPromptHandler.getExpandPrompt());
+                TooltipPromptHandler.promptAddedThisTick = true;
             }
         }
 
@@ -92,11 +91,11 @@ public class ItemStackMixin {
         ItemStack stack = (ItemStack) (Object) this;
         EnchantmentTooltipHandler.getInstance().revertContext(stack);
 
-        // Add shift prompt if enchantments are expandable and one hasn't been added yet
-        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Screen.hasShiftDown() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
-            if (!EnchantmentTooltipHandler.promptAddedThisTick) {
-                list.add(EnchantmentTooltipHandler.SHIFT_PROMPT);
-                EnchantmentTooltipHandler.promptAddedThisTick = true;
+        // Use Keybindings.isDetailedView()
+        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Keybindings.isDetailedView() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
+            if (!TooltipPromptHandler.promptAddedThisTick) {
+                list.add(TooltipPromptHandler.getExpandPrompt());
+                TooltipPromptHandler.promptAddedThisTick = true;
             }
         }
     }

@@ -1,6 +1,7 @@
 {
-  "tooltip.dynamictooltips.shift_symbol_part": "[\u21E7Shift] ",
-  "tooltip.dynamictooltips.expand_text_part": "Expand Tooltip",
+  "key.category.dynamictooltips": "Dynamic Tooltips",
+  "key.dynamictooltips.show_details": "Expand Tooltip",
+  "tooltip.dynamictooltips.expand_text_part": " Expand Tooltip",
 
   "enchantment.minecraft.protection.desc": "Reduces damage from most sources.",
   "enchantment.minecraft.fire_protection.desc": "Reduces the effects of fire damage. Also reduces the burn time when set on fire.",

@@ -62,18 +62,15 @@ public class BlockRangeTooltipHandler {
             return;
         }
 
-        // Check Better Combat override
         if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
             WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
             if (weaponAttributes != null) {
-                // If Better Combat handles it as a weapon, don't add our tooltip
                 return;
             }
         }
 
         AttributeInstance blockRangeInstance = localPlayer.getAttribute(BLOCK_RANGE_ATTR_HOLDER);
         if (blockRangeInstance == null) {
-            // Use description ID for logging
             LOGGER.warn("Player {} missing attribute instance for {}", localPlayer.getName().getString(), BLOCK_RANGE_ATTR_HOLDER.value().getDescriptionId());
             return;
         }
@@ -112,28 +109,23 @@ public class BlockRangeTooltipHandler {
                  relevantModifiers.add(mod);
             }
         }
-        
-        // Add modifiers from the item being viewed
+
         relevantModifiers.addAll(viewedItemModifiers);
 
-        // Calculate the final value by applying relevant modifiers to the base value
-        relevantModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR); // Ensure correct application order
+        relevantModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
         double calculatedFinalValue = baseValue;
-        // Apply ADD_VALUE first
         for (AttributeModifier modifier : relevantModifiers) {
             if (modifier.operation() == AttributeModifier.Operation.ADD_VALUE) {
                 calculatedFinalValue += modifier.amount();
             }
         }
         double valueToAddFromBase = 0;
-        // Apply ADD_MULTIPLIED_BASE second
         for (AttributeModifier modifier : relevantModifiers) {
             if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
                 valueToAddFromBase += baseValue * modifier.amount();
             }
         }
         calculatedFinalValue += valueToAddFromBase;
-        // Apply ADD_MULTIPLIED_TOTAL last
         for (AttributeModifier modifier : relevantModifiers) {
              if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
                  calculatedFinalValue *= (1.0 + modifier.amount());
@@ -145,7 +137,7 @@ public class BlockRangeTooltipHandler {
 
         result.needsShiftPrompt |= hasModifications;
 
-        if (AttributeTooltipHandler.isDetailedView() && hasModifications) {
+        if (Keybindings.isDetailedView() && hasModifications) {
              tooltipConsumer.accept(createRangeLine(finalValue, true));
              tooltipConsumer.accept(AttributeTooltipHandler.listHeader().append(createRangeLine(baseValue, false).withStyle(AttributeTooltipHandler.BASE_COLOR)));
 
@@ -161,7 +153,6 @@ public class BlockRangeTooltipHandler {
              tooltipConsumer.accept(createRangeLine(finalValue, hasModifications));
         }
 
-        // Mark Block Interaction Range as handled
         result.handledAttributes.add(BLOCK_RANGE_ATTR_HOLDER);
     }
 

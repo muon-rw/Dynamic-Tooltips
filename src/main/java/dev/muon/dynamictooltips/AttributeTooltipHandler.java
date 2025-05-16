@@ -2,10 +2,12 @@ package dev.muon.dynamictooltips;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
+import com.mojang.blaze3d.platform.InputConstants;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
 import net.fabric_extras.ranged_weapon.api.AttributeModifierIDs;
 import net.fabric_extras.ranged_weapon.api.CustomRangedWeapon;
 import net.fabric_extras.ranged_weapon.api.EntityAttributes_RangedWeapon;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.item.DiggerItem;
@@ -40,6 +42,10 @@ import net.bettercombat.logic.WeaponRegistry;
 import net.fabric_extras.ranged_weapon.api.RangedConfig;
 import net.minecraft.world.entity.ai.attributes.Attribute.Sentiment;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
+import dev.muon.dynamictooltips.Keybindings;
+import dev.muon.dynamictooltips.mixin.accessor.KeyMappingAccessor;
+import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.KeyMapping;
 
 
 /**
@@ -125,9 +131,6 @@ public class AttributeTooltipHandler {
     });
 
 
-    public static boolean isDetailedView() {
-        return Screen.hasShiftDown();
-    }
 
     // Helper to get modifier IDs (AttributeRL:ModifierUUID) from a multimap
     private static Set<String> getModifierIdKeys(Multimap<Holder<Attribute>, AttributeModifier> map) {
@@ -436,7 +439,7 @@ public class AttributeTooltipHandler {
                  return style;
              })));
 
-            if (isDetailedView() && isMerged) {
+            if (Keybindings.isDetailedView() && isMerged) {
                 text = createBaseComponent(attr.value(), rawBaseValue, entityBase, false);
                 tooltip.accept(listHeader().append(text.withStyle(BASE_COLOR)));
 
@@ -551,7 +554,7 @@ public class AttributeTooltipHandler {
                 // Use light blue for merged non-base attributes
                 tooltip.accept(modComponent.withStyle(style -> style.withColor(MERGED_MODIFIER_COLOR)));
 
-                if (isDetailedView()) {
+                if (Keybindings.isDetailedView()) {
                     data.children.sort(ATTRIBUTE_MODIFIER_COMPARATOR);
                     for (AttributeModifier mod : data.children) {
                         tooltip.accept(listHeader().append(createModifierComponent(attr.value(), mod)));
