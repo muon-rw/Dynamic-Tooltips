@@ -3,6 +3,29 @@
   "key.dynamictooltips.show_details": "Expand Tooltip",
   "tooltip.dynamictooltips.expand_text_part": " Expand Tooltip",
 
+  "dynamictooltips.configuration.title": "Dynamic Tooltips Settings",
+
+  "dynamictooltips.configuration.attributes": "Attributes Settings",
+  "dynamictooltips.configuration.appendBlockInteractionRangeTooltip": "Append Block Interaction Range",
+  "dynamictooltips.configuration.appendBlockInteractionRangeTooltip.tooltip": "Append Block Interaction Range attribute line to relevant tooltips (e.g., tools).",
+  "dynamictooltips.configuration.attributeColorOverrides": "Attribute Color Overrides",
+  "dynamictooltips.configuration.attributeColorOverrides.tooltip": "Define custom color rules for specific attributes in tooltips.\nFormat: \"attribute_id:LOGIC[:#HEXCOLOR]\".\n  attribute_id: The ResourceLocation of the attribute (e.g., minecraft:generic.movement_speed).\n  LOGIC: How to color the modifier value. Options: INVERTED, FIXED.\n    INVERTED: Use the opposite of the attribute's default sentiment coloring (e.g., positive value = red).\n    FIXED: Always use the specified hex color, regardless of value.\n  :#HEXCOLOR: Required only if LOGIC is FIXED. The hex color code (e.g., #RRGGBB).\n  (If no rule is specified for an attribute, vanilla default coloring is used).",
+
+  "dynamictooltips.configuration.enchantments": "Enchantment Settings",
+  "dynamictooltips.configuration.collapseEnchantmentTooltipsOnGear": "Collapse Enchantment Descriptions on Gear",
+  "dynamictooltips.configuration.collapseEnchantmentTooltipsOnGear.tooltip": "Collapse enchantment descriptions on gear by default, requiring Shift to be held to view them. Enchanted Books always show descriptions.",
+  "dynamictooltips.configuration.colorEnchantmentNames": "Color Enchantment Names",
+  "dynamictooltips.configuration.colorEnchantmentNames.tooltip": "Enable coloring for enchantment names in tooltips.",
+  "dynamictooltips.configuration.enchantmentNameColor": "Enchantment Name Color",
+  "dynamictooltips.configuration.enchantmentNameColor.tooltip": "Hex color code (#RRGGBB) for regular enchantment names (if colorEnchantmentNames is true). Curses are always red.",
+  "dynamictooltips.configuration.enchantmentDescriptionColor": "Enchantment Description Color",
+  "dynamictooltips.configuration.enchantmentDescriptionColor.tooltip": "Hex color code (#RRGGBB) for enchantment description text.",
+  "dynamictooltips.configuration.superLeveledEnchantmentColor": "Super-Leveled Enchantment Color",
+  "dynamictooltips.configuration.superLeveledEnchantmentColor.tooltip": "Hex color code (#RRGGBB) for enchantments above their max level (excluding curses) if colorEnchantmentNames is true.",
+
+  "dynamictooltips.configuration.showUsabilityHint": "Show Usability Hint",
+  "dynamictooltips.configuration.showUsabilityHint.tooltip": "Show the 'Hold [Shift] to expand...' hint when tooltips have hidden details (merged attributes or collapsed enchantments).",
+
   "enchantment.minecraft.protection.desc": "Reduces damage from most sources.",
   "enchantment.minecraft.fire_protection.desc": "Reduces the effects of fire damage. Also reduces the burn time when set on fire.",
   "enchantment.minecraft.feather_falling.desc": "Reduces fall damage and ender pearl teleportation damage.",

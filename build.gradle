@@ -27,6 +27,7 @@ repositories {
 	}
 	maven { url "https://cursemaven.com" }
 	maven { url "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/" }
+	maven { url "https://maven.terraformersmc.com/"}
 }
 
 dependencies {
@@ -40,6 +41,7 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
 	modImplementation("fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${project.forge_config_api_version}")
+	modImplementation("com.terraformersmc:modmenu:${project.modmenu_version}") {transitive false}
 
 	modImplementation("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.2.0")
 	include("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.2.0")

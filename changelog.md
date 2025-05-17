@@ -1,5 +1,6 @@
 ## 0.5.0
-- Fix the same inconsistency from 0.4.1 for Attack Range
+- Added Mod Menu config support - **Slight changes to the config structure, you may need to reapply config changes you've made**  
+- Fix a similar total-merged-value issue from 0.4.1 for Attack Range
 - Fix Attack Range tooltip's base value not respecting a player's modified base entity interaction range, if it was modified via the `attribute base set` command
 - Made the keybind (Shift to Expand Tooltip) modifiable. 
 

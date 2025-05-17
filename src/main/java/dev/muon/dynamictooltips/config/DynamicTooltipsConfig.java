@@ -5,7 +5,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.jetbrains.annotations.Nullable;
-
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -39,38 +38,34 @@ public class DynamicTooltipsConfig {
         public final ModConfigSpec.ConfigValue<List<? extends String>> attributeColorOverrides;
 
         Client(ModConfigSpec.Builder builder) {
-            builder.push("Client Settings");
 
             appendBlockInteractionRangeTooltip = builder
-                .comment("Append Block Interaction Range attribute line to relevant tooltips (e.g., tools)")
+                .comment("Append Block Interaction Range attribute line to relevant tooltips (pickaxes, shovels, etc.)")
                 .define("appendBlockInteractionRangeTooltip", true);
 
             showUsabilityHint = builder
-                .comment("Show the 'Hold [Shift] to expand...' hint when tooltips have hidden details (merged attributes or collapsed enchantments).")
-                .define("showUsabilityHint", true);
+                    .comment("Show the 'Hold [Shift] to expand...' hint in tooltips that have merged attributes or collapsed enchantments.")
+                    .define("showUsabilityHint", false);
 
             collapseEnchantmentTooltipsOnGear = builder
-                .comment("Collapse enchantment descriptions on gear by default, requiring Shift to be held to view them. Enchanted Books always show descriptions.")
-                .define("collapseEnchantmentTooltipsOnGear", true);
-
-            builder.pop();
-            builder.push("Color Settings");
+                    .comment("Collapse enchantment descriptions on gear, requiring Shift to be held to view them. \n\nEnchanted Books always show descriptions.")
+                    .define("collapseEnchantmentTooltipsOnGear", true);
 
             colorEnchantmentNames = builder
-                .comment("Enable coloring for enchantment names in tooltips.")
-                .define("colorEnchantmentNames", true);
+                    .comment("Enable custom coloring of enchantments in tooltips.")
+                    .define("colorEnchantmentNames", true);
 
             enchantmentNameColor = builder
-                .comment("Hex color code (#RRGGBB) for regular enchantment names (if colorEnchantmentNames is true). Curses are always red.")
-                .define("enchantmentNameColor", "#AAAAAA", Client::validateHexColor);
+                    .comment("Hex color code (#RRGGBB) for regular enchantment names (if colorEnchantmentNames is true). Curses are always red.")
+                    .define("enchantmentNameColor", "#AAAAAA", Client::validateHexColor);
 
             enchantmentDescriptionColor = builder
-                .comment("Hex color code (#RRGGBB) for enchantment description text.")
-                .define("enchantmentDescriptionColor", "#808080", Client::validateHexColor);
+                    .comment("Hex color code (#RRGGBB) for enchantment description text.")
+                    .define("enchantmentDescriptionColor", "#808080", Client::validateHexColor);
 
             superLeveledEnchantmentColor = builder
-                .comment("Hex color code (#RRGGBB) for enchantments above their max level (excluding curses) if colorEnchantmentNames is true.")
-                .define("superLeveledEnchantmentColor", "#FF55FF", Client::validateHexColor);
+                    .comment("Hex color code (#RRGGBB) for enchantments above their max level (excluding curses) if colorEnchantmentNames is true.")
+                    .define("superLeveledEnchantmentColor", "#FF55FF", Client::validateHexColor);
 
             attributeColorOverrides = builder
                 .comment(
@@ -98,7 +93,6 @@ public class DynamicTooltipsConfig {
                     Client::validateAttributeColorRule
                 );
 
-            builder.pop();
         }
 
         public record AttributeColorRule(ResourceLocation attributeId, ColorLogic logic, @Nullable ChatFormatting fixedColor, @Nullable String hexColor) {}
