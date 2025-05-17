@@ -2,7 +2,7 @@ package dev.muon.dynamictooltips.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.muon.dynamictooltips.EnchantmentContext;
-import dev.muon.dynamictooltips.EnchantmentTooltipHandler;
+import dev.muon.dynamictooltips.handlers.EnchantmentTooltipHandler;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;

@@ -1,11 +1,11 @@
-package dev.muon.dynamictooltips;
+package dev.muon.dynamictooltips.handlers;
 
+import dev.muon.dynamictooltips.Keybindings;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.logic.WeaponRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
@@ -28,9 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
-import dev.muon.dynamictooltips.AttributeTooltipHandler.TooltipApplyResult;
+import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler.TooltipApplyResult;
 import java.util.stream.Collectors;
-import java.util.UUID;
 import java.util.Set;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.resources.ResourceLocation;

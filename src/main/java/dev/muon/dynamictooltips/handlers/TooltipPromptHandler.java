@@ -1,5 +1,6 @@
-package dev.muon.dynamictooltips;
+package dev.muon.dynamictooltips.handlers;
 
+import dev.muon.dynamictooltips.Keybindings;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;

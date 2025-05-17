@@ -2,9 +2,9 @@ package dev.muon.dynamictooltips.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
-import dev.muon.dynamictooltips.AttributeTooltipHandler;
-import dev.muon.dynamictooltips.EnchantmentTooltipHandler;
-import dev.muon.dynamictooltips.TooltipPromptHandler;
+import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler;
+import dev.muon.dynamictooltips.handlers.EnchantmentTooltipHandler;
+import dev.muon.dynamictooltips.handlers.TooltipPromptHandler;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;

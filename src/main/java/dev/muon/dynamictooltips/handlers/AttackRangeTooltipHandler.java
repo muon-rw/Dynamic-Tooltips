@@ -1,4 +1,4 @@
-package dev.muon.dynamictooltips;
+package dev.muon.dynamictooltips.handlers;
 
 import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.client.BetterCombatClientMod;
@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
-import dev.muon.dynamictooltips.AttributeTooltipHandler.TooltipApplyResult;
+import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler.TooltipApplyResult;
 import dev.muon.dynamictooltips.Keybindings;
 
 /**

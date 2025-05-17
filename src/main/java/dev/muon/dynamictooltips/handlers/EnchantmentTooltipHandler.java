@@ -1,6 +1,7 @@
-package dev.muon.dynamictooltips;
+package dev.muon.dynamictooltips.handlers;
 
-import net.minecraft.client.gui.screens.Screen;
+import dev.muon.dynamictooltips.EnchantmentContext;
+import dev.muon.dynamictooltips.Keybindings;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -17,8 +18,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.function.Consumer;
 
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
-import dev.muon.dynamictooltips.Keybindings;
-import dev.muon.dynamictooltips.AttributeTooltipHandler;
 
 public class EnchantmentTooltipHandler {
 

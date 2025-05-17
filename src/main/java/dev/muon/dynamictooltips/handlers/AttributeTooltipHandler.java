@@ -1,19 +1,11 @@
-package dev.muon.dynamictooltips;
+package dev.muon.dynamictooltips.handlers;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
-import com.mojang.blaze3d.platform.InputConstants;
+import dev.muon.dynamictooltips.DynamicTooltips;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
-import net.fabric_extras.ranged_weapon.api.AttributeModifierIDs;
-import net.fabric_extras.ranged_weapon.api.CustomRangedWeapon;
-import net.fabric_extras.ranged_weapon.api.EntityAttributes_RangedWeapon;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.item.DiggerItem;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -22,7 +14,6 @@ import java.util.function.Consumer;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -39,13 +30,8 @@ import net.minecraft.world.item.ItemStack;
 import net.fabricmc.loader.api.FabricLoader;
 import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.logic.WeaponRegistry;
-import net.fabric_extras.ranged_weapon.api.RangedConfig;
-import net.minecraft.world.entity.ai.attributes.Attribute.Sentiment;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 import dev.muon.dynamictooltips.Keybindings;
-import dev.muon.dynamictooltips.mixin.accessor.KeyMappingAccessor;
-import org.lwjgl.glfw.GLFW;
-import net.minecraft.client.KeyMapping;
 
 
 /**

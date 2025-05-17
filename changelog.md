@@ -3,6 +3,7 @@
 - Fix a similar total-merged-value issue from 0.4.1 for Attack Range
 - Fix Attack Range tooltip's base value not respecting a player's modified base entity interaction range, if it was modified via the `attribute base set` command
 - Made the keybind (Shift to Expand Tooltip) modifiable. 
+- Minor internal cleanup
 
 ## 0.4.1 
 - Fix an inconsistency with modifier ordering that led to slightly incorrect total merged values
