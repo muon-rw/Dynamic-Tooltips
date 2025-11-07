@@ -106,7 +106,7 @@ publishMods {
 		projectId = "1247062"
 		projectSlug = "dynamic-tooltips"
 		accessToken = providers.environmentVariable("CF_TOKEN")
-		minecraftVersions.add("1.21.1")
+		minecraftVersions.add("${minecraft_version}")
 		requires("fabric-api")
 		requires("forge-config-api-port-fabric")
 		clientRequired = true
@@ -115,7 +115,7 @@ publishMods {
 	modrinth {
 		projectId = "yakHVeQt"
 		accessToken = providers.environmentVariable("MODRINTH_TOKEN")
-		minecraftVersions.add("1.21.1")
+		minecraftVersions.add("${minecraft_version}")
 		requires("fabric-api")
 		requires("forge-config-api-port")
 	}
