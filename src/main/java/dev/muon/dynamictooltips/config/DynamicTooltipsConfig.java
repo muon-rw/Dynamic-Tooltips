@@ -2,7 +2,10 @@ package dev.muon.dynamictooltips.config;
 
 import com.google.common.collect.Lists;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.jetbrains.annotations.Nullable;
 import java.util.List;
@@ -29,6 +32,9 @@ public class DynamicTooltipsConfig {
 
     public static class Client {
         public final ModConfigSpec.BooleanValue appendBlockInteractionRangeTooltip;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> blockInteractionRangeItemTags;
+        public final ModConfigSpec.BooleanValue appendEntityInteractionRangeTooltip;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> entityInteractionRangeItemTags;
         public final ModConfigSpec.BooleanValue showUsabilityHint;
         public final ModConfigSpec.BooleanValue collapseEnchantmentTooltipsOnGear;
         public final ModConfigSpec.ConfigValue<String> enchantmentDescriptionColor;
@@ -42,6 +48,45 @@ public class DynamicTooltipsConfig {
             appendBlockInteractionRangeTooltip = builder
                 .comment("Append Block Interaction Range attribute line to relevant tooltips (pickaxes, shovels, etc.)")
                 .define("appendBlockInteractionRangeTooltip", true);
+
+            blockInteractionRangeItemTags = builder
+                .comment(
+                    "Items or tags that should display Block Interaction Range tooltips.",
+                    "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.",
+                    "Default includes common mining tools (pickaxes, axes, shovels, hoes, shears).",
+                    "Examples:",
+                    "  \"minecraft:diamond_pickaxe\" - specific item",
+                    "  \"#minecraft:enchantable/mining\" - all items in tag"
+                )
+                .defineListAllowEmpty("blockInteractionRangeItemTags",
+                    Lists.newArrayList(
+                        "#minecraft:enchantable/mining"
+                    ),
+                    Client::validateItemOrTag
+                );
+
+            appendEntityInteractionRangeTooltip = builder
+                .comment("Append Entity Interaction Range attribute line to relevant tooltips (swords, etc.)")
+                .define("appendEntityInteractionRangeTooltip", true);
+
+            entityInteractionRangeItemTags = builder
+                .comment(
+                    "Items or tags that should display Entity Interaction Range tooltips.",
+                    "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.",
+                    "Default includes weapon-related enchantable tags.",
+                    "Examples:",
+                    "  \"minecraft:diamond_sword\" - specific item",
+                    "  \"#minecraft:enchantable/weapon\" - all items in tag"
+                )
+                .defineListAllowEmpty("entityInteractionRangeItemTags",
+                    Lists.newArrayList(
+                        "#minecraft:enchantable/weapon",
+                        "#minecraft:enchantable/trident",
+                        "#minecraft:enchantable/fire_aspect",
+                        "#minecraft:enchantable/sharp_weapon"
+                    ),
+                    Client::validateItemOrTag
+                );
 
             showUsabilityHint = builder
                     .comment("Show the 'Hold [Shift] to expand...' hint in tooltips that have merged attributes or collapsed enchantments.")
@@ -100,6 +145,47 @@ public class DynamicTooltipsConfig {
         private static boolean validateHexColor(Object obj) {
             if (!(obj instanceof String str)) return false;
             return HEX_COLOR_PATTERN.matcher(str).matches();
+        }
+
+        private static boolean validateResourceLocation(Object obj) {
+            if (!(obj instanceof String str)) return false;
+            return ResourceLocation.tryParse(str) != null;
+        }
+
+        private static boolean validateItemOrTag(Object obj) {
+            if (!(obj instanceof String str)) return false;
+            // Strip # prefix if present for validation
+            String toValidate = str.startsWith("#") ? str.substring(1) : str;
+            return ResourceLocation.tryParse(toValidate) != null;
+        }
+
+        /**
+         * Checks if an ItemStack matches an item/tag specification string.
+         * 
+         * @param stack The ItemStack to check
+         * @param entry Format: "namespace:path" for items, "#namespace:path" for tags
+         * @return true if the stack matches the specification
+         */
+        public static boolean matchesItemOrTag(net.minecraft.world.item.ItemStack stack, String entry) {
+            if (entry.startsWith("#")) {
+                // Tag specification
+                ResourceLocation tagId = ResourceLocation.tryParse(entry.substring(1));
+                if (tagId != null) {
+                    TagKey<net.minecraft.world.item.Item> tag =
+                        TagKey.create(Registries.ITEM, tagId);
+                    return stack.is(tag);
+                }
+            } else {
+                // Direct item ID specification
+                ResourceLocation itemId = ResourceLocation.tryParse(entry);
+                if (itemId != null) {
+                    var holderOptional = BuiltInRegistries.ITEM.get(itemId);
+                    if (holderOptional.isPresent()) {
+                        return stack.is(holderOptional.get());
+                    }
+                }
+            }
+            return false;
         }
 
         private static boolean validateAttributeColorRule(Object obj) {

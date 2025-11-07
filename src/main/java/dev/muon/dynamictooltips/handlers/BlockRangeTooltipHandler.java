@@ -2,21 +2,19 @@ package dev.muon.dynamictooltips.handlers;
 
 import dev.muon.dynamictooltips.Keybindings;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
-import net.bettercombat.api.WeaponAttributes;
-import net.bettercombat.logic.WeaponRegistry;
+//import net.bettercombat.api.WeaponAttributes;
+//import net.bettercombat.logic.WeaponRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -31,7 +29,7 @@ import java.util.function.Consumer;
 import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler.TooltipApplyResult;
 import java.util.stream.Collectors;
 import java.util.Set;
-import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.resources.ResourceLocation;
 
 
@@ -50,23 +48,20 @@ public class BlockRangeTooltipHandler {
             return;
         }
 
-        // Check if item is a relevant tool type
-        boolean isRelevantTool = (stack.getItem() instanceof DiggerItem)
-                || stack.is(ItemTags.PICKAXES)
-                || stack.is(ItemTags.AXES)
-                || stack.is(ItemTags.SHOVELS)
-                || stack.is(ItemTags.HOES);
+        // Check if item matches any of the configured items or tags
+        boolean isRelevantTool = DynamicTooltipsConfig.CLIENT.blockInteractionRangeItemTags.get().stream()
+            .anyMatch(entry -> DynamicTooltipsConfig.Client.matchesItemOrTag(stack, entry));
 
         if (!isRelevantTool) {
             return;
         }
 
-        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
-            WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
-            if (weaponAttributes != null) {
-                return;
-            }
-        }
+//        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
+//            WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
+//            if (weaponAttributes != null) {
+//                return;
+//            }
+//        }
 
         AttributeInstance blockRangeInstance = localPlayer.getAttribute(BLOCK_RANGE_ATTR_HOLDER);
         if (blockRangeInstance == null) {
@@ -76,14 +71,14 @@ public class BlockRangeTooltipHandler {
 
         // --- Calculate the hypothetical range if holding this item --- 
         double baseValue = blockRangeInstance.getBaseValue();
-        List<AttributeModifier> relevantModifiers = new ArrayList<>();
+        List<AttributeModifier> sortedModifiers = new ArrayList<>();
 
         // Get all modifiers currently affecting the player
         List<AttributeModifier> allCurrentModifiers = new ArrayList<>(blockRangeInstance.getModifiers());
 
         // Get modifiers specifically from the item being viewed
         List<AttributeModifier> viewedItemModifiers = new ArrayList<>();
-        stack.forEachModifier(EquipmentSlot.MAINHAND, (attrHolder, modifier) -> {
+        stack.forEachModifier(EquipmentSlotGroup.MAINHAND, (attrHolder, modifier, display) -> {
             if (attrHolder == BLOCK_RANGE_ATTR_HOLDER) {
                 viewedItemModifiers.add(modifier);
             }
@@ -93,7 +88,7 @@ public class BlockRangeTooltipHandler {
         ItemStack equippedStack = localPlayer.getMainHandItem();
         List<AttributeModifier> equippedItemModifiers = new ArrayList<>();
         if (!equippedStack.isEmpty()) {
-            equippedStack.forEachModifier(EquipmentSlot.MAINHAND, (attrHolder, modifier) -> {
+            equippedStack.forEachModifier(EquipmentSlotGroup.MAINHAND, (attrHolder, modifier, display) -> {
                  if (attrHolder == BLOCK_RANGE_ATTR_HOLDER) {
                      equippedItemModifiers.add(modifier);
                  }
@@ -105,33 +100,14 @@ public class BlockRangeTooltipHandler {
         // Add modifiers from the player instance that are NOT from the currently equipped mainhand item
         for(AttributeModifier mod : allCurrentModifiers) {
             if (!equippedIds.contains(mod.id())) {
-                 relevantModifiers.add(mod);
+                 sortedModifiers.add(mod);
             }
         }
 
-        relevantModifiers.addAll(viewedItemModifiers);
+        sortedModifiers.addAll(viewedItemModifiers);
 
-        relevantModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
-        double calculatedFinalValue = baseValue;
-        for (AttributeModifier modifier : relevantModifiers) {
-            if (modifier.operation() == AttributeModifier.Operation.ADD_VALUE) {
-                calculatedFinalValue += modifier.amount();
-            }
-        }
-        double valueToAddFromBase = 0;
-        for (AttributeModifier modifier : relevantModifiers) {
-            if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
-                valueToAddFromBase += baseValue * modifier.amount();
-            }
-        }
-        calculatedFinalValue += valueToAddFromBase;
-        for (AttributeModifier modifier : relevantModifiers) {
-             if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
-                 calculatedFinalValue *= (1.0 + modifier.amount());
-             }
-        }
-        
-        double finalValue = calculatedFinalValue; 
+        sortedModifiers.sort(AttributeTooltipHandler.ATTRIBUTE_MODIFIER_COMPARATOR);
+        double finalValue = calculateMergedValue(baseValue, sortedModifiers);
         boolean hasModifications = Math.abs(finalValue - baseValue) > 1e-4;
 
         result.needsShiftPrompt |= hasModifications;
@@ -140,8 +116,8 @@ public class BlockRangeTooltipHandler {
              tooltipConsumer.accept(createRangeLine(finalValue, true));
              tooltipConsumer.accept(AttributeTooltipHandler.listHeader().append(createRangeLine(baseValue, false).withStyle(AttributeTooltipHandler.BASE_COLOR)));
 
-             List<AttributeModifier> sortedModifiers = relevantModifiers; // Already sorted
-             for (AttributeModifier modifier : sortedModifiers) {
+            // Already sorted
+            for (AttributeModifier modifier : sortedModifiers) {
                  if (modifier.amount() != 0) { 
                       tooltipConsumer.accept(AttributeTooltipHandler.listHeader().append(
                            AttributeTooltipHandler.createModifierComponent(BLOCK_RANGE_ATTR_HOLDER.value(), modifier)
@@ -153,6 +129,29 @@ public class BlockRangeTooltipHandler {
         }
 
         result.handledAttributes.add(BLOCK_RANGE_ATTR_HOLDER);
+    }
+
+    private static double calculateMergedValue(double baseValue, List<AttributeModifier> sortedModifiers) {
+        double finalValue = baseValue;
+        for (AttributeModifier modifier : sortedModifiers) {
+            if (modifier.operation() == AttributeModifier.Operation.ADD_VALUE) {
+                finalValue += modifier.amount();
+            }
+        }
+        double valueToAddFromBase = 0;
+        for (AttributeModifier modifier : sortedModifiers) {
+            if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
+                valueToAddFromBase += baseValue * modifier.amount();
+            }
+        }
+        finalValue += valueToAddFromBase;
+        for (AttributeModifier modifier : sortedModifiers) {
+             if (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
+                 finalValue *= (1.0 + modifier.amount());
+             }
+        }
+
+        return finalValue;
     }
 
 

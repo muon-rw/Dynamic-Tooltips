@@ -9,8 +9,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.jetbrains.annotations.Nullable;
@@ -62,14 +62,14 @@ public class EnchantmentTooltipHandler {
     public static boolean itemHasExpandableEnchantments(ItemStack stack) {
         return DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() &&
                hasEnchantments(stack) &&
-               !(stack.getItem() instanceof EnchantedBookItem);
+               !(stack.getItem() == Items.ENCHANTED_BOOK);
     }
 
     public boolean shouldDisplayDescription(ItemStack stack) {
         if (!hasEnchantments(stack)) {
             return false;
         }
-        if (stack.getItem() instanceof EnchantedBookItem) {
+        if (stack.getItem() == Items.ENCHANTED_BOOK) {
             return true;
         }
         return !DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() || Keybindings.isDetailedView();

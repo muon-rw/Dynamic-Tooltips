@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import dev.muon.dynamictooltips.EnchantmentContext;
 import dev.muon.dynamictooltips.handlers.EnchantmentTooltipHandler;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -36,27 +37,25 @@ public class ItemEnchantmentsMixin implements EnchantmentContext {
     }
 
     @Inject(
-            method = "addToTooltip(Lnet/minecraft/world/item/Item$TooltipContext;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;)V",
+            method = "addToTooltip(Lnet/minecraft/world/item/Item$TooltipContext;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;Lnet/minecraft/core/component/DataComponentGetter;)V",
             at = @At(value = "INVOKE", target = "Ljava/util/function/Consumer;accept(Ljava/lang/Object;)V", ordinal = 0, shift = At.Shift.AFTER)
     )
-    private void dynamictooltips$addDescriptionSorted(Item.TooltipContext context, Consumer<Component> tooltipConsumer, TooltipFlag flag, CallbackInfo ci,
-                                                      @Local Holder<Enchantment> enchantment, @Local int level) {
+    private void dynamictooltips$addDescriptionSorted(Item.TooltipContext tooltipContext, Consumer<Component> consumer, TooltipFlag tooltipFlag, DataComponentGetter dataComponentGetter, CallbackInfo ci, @Local Holder<Enchantment> enchantment, @Local int level) {
         if (!this.dynamictooltips$heldStack.isEmpty() && EnchantmentTooltipHandler.getInstance().shouldDisplayDescription(this.dynamictooltips$heldStack)) {
-            EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, tooltipConsumer);
+            EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, consumer);
         }
     }
 
     @Inject(
-            method = "addToTooltip(Lnet/minecraft/world/item/Item$TooltipContext;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;)V",
+            method = "addToTooltip(Lnet/minecraft/world/item/Item$TooltipContext;Ljava/util/function/Consumer;Lnet/minecraft/world/item/TooltipFlag;Lnet/minecraft/core/component/DataComponentGetter;)V",
             at = @At(value = "INVOKE", target = "Ljava/util/function/Consumer;accept(Ljava/lang/Object;)V", ordinal = 1, shift = At.Shift.AFTER)
     )
-    private void dynamictooltips$addDescriptionUnsorted(Item.TooltipContext context, Consumer<Component> tooltipConsumer, TooltipFlag flag, CallbackInfo ci,
-                                                        @Local Object2IntMap.Entry<Holder<Enchantment>> entry) {
+    private void dynamictooltips$addDescriptionUnsorted(Item.TooltipContext tooltipContext, Consumer<Component> consumer, TooltipFlag tooltipFlag, DataComponentGetter dataComponentGetter, CallbackInfo ci, @Local Object2IntMap.Entry<Holder<Enchantment>> entry) {
         if (!this.dynamictooltips$heldStack.isEmpty() && EnchantmentTooltipHandler.getInstance().shouldDisplayDescription(this.dynamictooltips$heldStack)) {
             if (entry != null) {
                 Holder<Enchantment> enchantment = entry.getKey();
                 int level = entry.getIntValue();
-                EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, tooltipConsumer);
+                EnchantmentTooltipHandler.getInstance().insertDescriptions(enchantment, level, consumer);
             }
         }
     }

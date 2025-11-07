@@ -7,8 +7,7 @@
     "accessor.KeyMappingAccessor",
     "EnchantmentMixin",
     "ItemEnchantmentsMixin",
-    "ItemStackMixin",
-    "compat.bettercombat.WeaponAttributeTooltipMixin"
+    "ItemStackMixin"
   ],
   "client": [
   ],

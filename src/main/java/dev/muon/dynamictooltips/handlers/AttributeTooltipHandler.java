@@ -4,6 +4,7 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import dev.muon.dynamictooltips.DynamicTooltips;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -27,9 +28,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.fabricmc.loader.api.FabricLoader;
-import net.bettercombat.api.WeaponAttributes;
-import net.bettercombat.logic.WeaponRegistry;
+//import net.bettercombat.api.WeaponAttributes;
+//import net.bettercombat.logic.WeaponRegistry;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 import dev.muon.dynamictooltips.Keybindings;
 
@@ -79,23 +79,6 @@ public class AttributeTooltipHandler {
                     .thenComparing((AttributeModifier a) -> -Math.abs(a.amount()))
                     .thenComparing(AttributeModifier::id);
 
-    private static final Map<String, EquipmentSlotGroup> KEY_SLOT_MAP = Util.make(new HashMap<>(), map -> {
-        map.put(Component.translatable("item.modifiers.mainhand").getString(), EquipmentSlotGroup.MAINHAND);
-        map.put(Component.translatable("item.modifiers.offhand").getString(), EquipmentSlotGroup.OFFHAND);
-        map.put(Component.translatable("item.modifiers.hand").getString(), EquipmentSlotGroup.HAND);
-        map.put(Component.translatable("item.modifiers.head").getString(), EquipmentSlotGroup.HEAD);
-        map.put(Component.translatable("item.modifiers.chest").getString(), EquipmentSlotGroup.CHEST);
-        map.put(Component.translatable("item.modifiers.legs").getString(), EquipmentSlotGroup.LEGS);
-        map.put(Component.translatable("item.modifiers.feet").getString(), EquipmentSlotGroup.FEET);
-        map.put(Component.translatable("item.modifiers.body").getString(), EquipmentSlotGroup.BODY);
-        map.put(Component.translatable("item.modifiers.armor").getString(), EquipmentSlotGroup.ARMOR);
-        map.put(Component.translatable("tiered.slot.feet").getString(), EquipmentSlotGroup.FEET);
-        map.put(Component.translatable("tiered.slot.head").getString(), EquipmentSlotGroup.HEAD);
-        map.put(Component.translatable("tiered.slot.chest").getString(), EquipmentSlotGroup.CHEST);
-        map.put(Component.translatable("tiered.slot.legs").getString(), EquipmentSlotGroup.LEGS);
-        map.put(Component.translatable("tiered.slot.body").getString(), EquipmentSlotGroup.BODY);
-        map.remove(null);
-    });
 
     // Attributes that should be treated as "base" modifiers: Display a base value as green, gold when merged
     private static final Set<ResourceLocation> BASE_ATTRIBUTE_IDS = Util.make(new HashSet<>(), set -> {
@@ -139,142 +122,171 @@ public class AttributeTooltipHandler {
 
     public static ProcessingResult processTooltip(ItemStack stack, List<Component> tooltip, @Nullable Player player) {
         List<AttributeSection> sections = findAttributeSections(tooltip);
+        
+        // Debug logging to help diagnose issues
+        if (sections.isEmpty() && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("No attribute sections found in tooltip for item: {}", stack.getItem());
+            LOGGER.debug("Tooltip contents:");
+            for (int i = 0; i < tooltip.size(); i++) {
+                LOGGER.debug("  [{}]: '{}'", i, tooltip.get(i).getString());
+            }
+        }
+        
         if (sections.isEmpty()) {
             return ProcessingResult.NO_CHANGE;
         }
 
-        EquipmentSlotGroup initialPrimaryGroup = null;
-        // Priority order remains the same
-        List<EquipmentSlotGroup> priorityOrder = List.of(
-            EquipmentSlotGroup.HEAD, EquipmentSlotGroup.CHEST, EquipmentSlotGroup.LEGS, EquipmentSlotGroup.FEET, // Specific Armor
-            EquipmentSlotGroup.MAINHAND,
-            EquipmentSlotGroup.HAND,
-            EquipmentSlotGroup.ARMOR,
-            EquipmentSlotGroup.BODY
-        );
-
-        for (EquipmentSlotGroup potentialPrimary : priorityOrder) {
-            for (AttributeSection section : sections) {
-                if (section.slot == potentialPrimary) {
-                    initialPrimaryGroup = potentialPrimary;
-                    break;
-                }
-            }
-            if (initialPrimaryGroup != null) break;
-        }
-
+        // Determine which slot group to use as the primary one
+        EquipmentSlotGroup initialPrimaryGroup = findPrimarySlotGroup(sections);
         if (initialPrimaryGroup == null) {
-             return ProcessingResult.NO_CHANGE;
+            return ProcessingResult.NO_CHANGE;
         }
 
-        // Pre-fetch modifiers for hand slots
-        Multimap<Holder<Attribute>, AttributeModifier> handMods = getSortedModifiers(stack, EquipmentSlotGroup.HAND);
-        Multimap<Holder<Attribute>, AttributeModifier> mainhandMods = getSortedModifiers(stack, EquipmentSlotGroup.MAINHAND);
-        Multimap<Holder<Attribute>, AttributeModifier> offhandMods = getSortedModifiers(stack, EquipmentSlotGroup.OFFHAND);
-
-        EquipmentSlotGroup finalPrimaryGroup = initialPrimaryGroup;
-
-        // === Re-evaluate primary group ===
-        if (initialPrimaryGroup == EquipmentSlotGroup.HAND) {
-            boolean mainhandHasExclusives = !mainhandMods.isEmpty() && containsExclusiveModifiers(mainhandMods, handMods);
-            boolean offhandHasExclusives = !offhandMods.isEmpty() && containsExclusiveModifiers(offhandMods, handMods);
-
-            if (mainhandHasExclusives) {
-                finalPrimaryGroup = EquipmentSlotGroup.MAINHAND;
-            } else if (offhandHasExclusives) {
-                finalPrimaryGroup = EquipmentSlotGroup.OFFHAND;
-            } else {
-                // No exclusives vs HAND, check if MAINHAND/OFFHAND match each other
-                Set<String> mainKeys = getModifierIdKeys(mainhandMods);
-                Set<String> offKeys = getModifierIdKeys(offhandMods);
-                if (!mainKeys.equals(offKeys)) {
-                    // They differ, default to MAINHAND if it's not empty
-                    if (!mainhandMods.isEmpty()) {
-                         finalPrimaryGroup = EquipmentSlotGroup.MAINHAND;
-                    } else if (!offhandMods.isEmpty()) {
-                         // If mainhand is empty but offhand isn't, use offhand
-                         finalPrimaryGroup = EquipmentSlotGroup.OFFHAND;
-                    } // else: both empty or both match -> HAND remains primary
-                    else {
-                         // Removed log
-                    }
-                }
-            }
-        } // else: initialPrimary was MAINHAND or OFFHAND, keep it.
-
-        // === Combine Modifiers based on final primary group ===
-        Multimap<Holder<Attribute>, AttributeModifier> combinedModifiers = LinkedListMultimap.create();
-        if (finalPrimaryGroup == EquipmentSlotGroup.HAND) {
-             combinedModifiers.putAll(handMods);
-             addNonDuplicateModifiers(combinedModifiers, mainhandMods); // Merge mainhand (should be same as offhand)
-        } else if (finalPrimaryGroup == EquipmentSlotGroup.MAINHAND) {
-             combinedModifiers.putAll(mainhandMods);
-             addNonDuplicateModifiers(combinedModifiers, handMods);
-        } else if (finalPrimaryGroup == EquipmentSlotGroup.OFFHAND) {
-             combinedModifiers.putAll(offhandMods);
-             addNonDuplicateModifiers(combinedModifiers, handMods);
-        } else {
-             // For Armor/Body slots, start with their own modifiers
-             combinedModifiers.putAll(getSortedModifiers(stack, finalPrimaryGroup));
-        }
-
-        // === Handle Armor Merging ===
-        Set<EquipmentSlotGroup> additionalSlotGroups = new HashSet<>();
-        if (finalPrimaryGroup == EquipmentSlotGroup.HEAD ||
-            finalPrimaryGroup == EquipmentSlotGroup.CHEST ||
-            finalPrimaryGroup == EquipmentSlotGroup.LEGS ||
-            finalPrimaryGroup == EquipmentSlotGroup.FEET ||
-            finalPrimaryGroup == EquipmentSlotGroup.BODY) {
-             additionalSlotGroups.add(EquipmentSlotGroup.ARMOR);
-        }
-
-        for(EquipmentSlotGroup additionalGroup : additionalSlotGroups) {
-             Multimap<Holder<Attribute>, AttributeModifier> additionalModifiers = getSortedModifiers(stack, additionalGroup);
-             addNonDuplicateModifiers(combinedModifiers, additionalModifiers);
-        }
-
-        EquipmentSlotGroup groupForHeader = finalPrimaryGroup; // Use the final group for the header text
+        // Combine all relevant modifiers into a single collection
+        Multimap<Holder<Attribute>, AttributeModifier> combinedModifiers = 
+            buildCombinedModifiers(stack, initialPrimaryGroup);
 
         if (combinedModifiers.isEmpty()) {
             return ProcessingResult.NO_CHANGE;
         }
 
-        List<Component> newTooltip = new ArrayList<>();
-        int currentOriginalIndex = 0;
-        List<AttributeSection> sortedSections = new ArrayList<>(sections);
-        sortedSections.sort(Comparator.comparingInt(s -> s.startIndex));
-        AttributeSection firstSectionOverall = sortedSections.get(0);
-        AttributeSection lastSectionOverall = sortedSections.get(sortedSections.size() - 1);
-        int endOfLastSectionIndex = lastSectionOverall.startIndex + lastSectionOverall.lineCount;
+        // Rebuild tooltip with merged attribute section
+        EquipmentSlotGroup finalGroup = determineFinalPrimaryGroup(stack, initialPrimaryGroup);
+        boolean needsShiftPrompt = rebuildTooltipWithMergedAttributes(stack, tooltip, sections, combinedModifiers, finalGroup, player);
+        
+        return new ProcessingResult(true, getHeaderForSlotGroup(finalGroup), needsShiftPrompt);
+    }
 
-        while (currentOriginalIndex < firstSectionOverall.startIndex) {
-            newTooltip.add(tooltip.get(currentOriginalIndex++));
-        }
+    private static final List<EquipmentSlotGroup> SLOT_PRIORITY_ORDER = List.of(
+        EquipmentSlotGroup.HEAD, EquipmentSlotGroup.CHEST, EquipmentSlotGroup.LEGS, EquipmentSlotGroup.FEET,
+        EquipmentSlotGroup.MAINHAND,
+        EquipmentSlotGroup.HAND,
+        EquipmentSlotGroup.ARMOR,
+        EquipmentSlotGroup.BODY
+    );
 
-        // --- Add "Two-Handed" line if applicable (Better Combat Integration) ---
-        // Necessary because we cancel the original two-handed injection with a mixin
-        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
-            WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
-            if (weaponAttributes != null && weaponAttributes.isTwoHanded()) {
-                newTooltip.add(Component.translatable("item.held.two_handed").withStyle(ChatFormatting.GRAY));
+    @Nullable
+    private static EquipmentSlotGroup findPrimarySlotGroup(List<AttributeSection> sections) {
+        for (EquipmentSlotGroup potentialPrimary : SLOT_PRIORITY_ORDER) {
+            for (AttributeSection section : sections) {
+                if (section.slot == potentialPrimary) {
+                    return potentialPrimary;
+                }
             }
         }
-        // --- End Better Combat Integration ---
+        return null;
+    }
 
-        Component finalHeader = getHeaderForSlotGroup(groupForHeader);
-        newTooltip.add(finalHeader);
-
-        TooltipApplyResult applyResult = applyTextFor(stack, newTooltip::add, combinedModifiers, player);
-
-        // Skip original attribute lines
-        currentOriginalIndex = endOfLastSectionIndex + 1;
-        while (currentOriginalIndex < tooltip.size()) {
-            newTooltip.add(tooltip.get(currentOriginalIndex++));
+    private static EquipmentSlotGroup determineFinalPrimaryGroup(ItemStack stack, EquipmentSlotGroup initialGroup) {
+        // Only HAND group needs re-evaluation
+        if (initialGroup != EquipmentSlotGroup.HAND) {
+            return initialGroup;
         }
 
+        // Check if MAINHAND or OFFHAND have exclusive modifiers not in HAND
+        Multimap<Holder<Attribute>, AttributeModifier> handMods = getSortedModifiers(stack, EquipmentSlotGroup.HAND);
+        Multimap<Holder<Attribute>, AttributeModifier> mainhandMods = getSortedModifiers(stack, EquipmentSlotGroup.MAINHAND);
+        Multimap<Holder<Attribute>, AttributeModifier> offhandMods = getSortedModifiers(stack, EquipmentSlotGroup.OFFHAND);
+
+        boolean mainhandHasExclusives = !mainhandMods.isEmpty() && containsExclusiveModifiers(mainhandMods, handMods);
+        boolean offhandHasExclusives = !offhandMods.isEmpty() && containsExclusiveModifiers(offhandMods, handMods);
+
+        if (mainhandHasExclusives) {
+            return EquipmentSlotGroup.MAINHAND;
+        } else if (offhandHasExclusives) {
+            return EquipmentSlotGroup.OFFHAND;
+        }
+
+        // If no exclusives, check if MAINHAND and OFFHAND differ from each other
+        Set<String> mainKeys = getModifierIdKeys(mainhandMods);
+        Set<String> offKeys = getModifierIdKeys(offhandMods);
+        if (!mainKeys.equals(offKeys)) {
+            // They differ, default to whichever is not empty (prefer MAINHAND)
+            if (!mainhandMods.isEmpty()) {
+                return EquipmentSlotGroup.MAINHAND;
+            } else if (!offhandMods.isEmpty()) {
+                return EquipmentSlotGroup.OFFHAND;
+            }
+        }
+
+        return EquipmentSlotGroup.HAND; // Keep HAND if everything matches
+    }
+
+    private static Multimap<Holder<Attribute>, AttributeModifier> buildCombinedModifiers(
+            ItemStack stack, 
+            EquipmentSlotGroup primaryGroup) {
+        
+        Multimap<Holder<Attribute>, AttributeModifier> combined = LinkedListMultimap.create();
+        
+        // Start with the primary group's modifiers
+        if (primaryGroup == EquipmentSlotGroup.HAND) {
+            combined.putAll(getSortedModifiers(stack, EquipmentSlotGroup.HAND));
+            addNonDuplicateModifiers(combined, getSortedModifiers(stack, EquipmentSlotGroup.MAINHAND));
+        } else if (primaryGroup == EquipmentSlotGroup.MAINHAND) {
+            combined.putAll(getSortedModifiers(stack, EquipmentSlotGroup.MAINHAND));
+            addNonDuplicateModifiers(combined, getSortedModifiers(stack, EquipmentSlotGroup.HAND));
+        } else if (primaryGroup == EquipmentSlotGroup.OFFHAND) {
+            combined.putAll(getSortedModifiers(stack, EquipmentSlotGroup.OFFHAND));
+            addNonDuplicateModifiers(combined, getSortedModifiers(stack, EquipmentSlotGroup.HAND));
+        } else {
+            combined.putAll(getSortedModifiers(stack, primaryGroup));
+        }
+
+        // Merge ARMOR modifiers for armor pieces
+        if (isArmorSlot(primaryGroup)) {
+            addNonDuplicateModifiers(combined, getSortedModifiers(stack, EquipmentSlotGroup.ARMOR));
+        }
+
+        return combined;
+    }
+
+    private static boolean isArmorSlot(EquipmentSlotGroup group) {
+        return group == EquipmentSlotGroup.HEAD 
+            || group == EquipmentSlotGroup.CHEST 
+            || group == EquipmentSlotGroup.LEGS 
+            || group == EquipmentSlotGroup.FEET 
+            || group == EquipmentSlotGroup.BODY;
+    }
+
+    private static boolean rebuildTooltipWithMergedAttributes(
+            ItemStack stack,
+            List<Component> tooltip,
+            List<AttributeSection> sections,
+            Multimap<Holder<Attribute>, AttributeModifier> combinedModifiers,
+            EquipmentSlotGroup finalGroup,
+            @Nullable Player player) {
+
+        // Find boundaries of attribute sections
+        List<AttributeSection> sortedSections = new ArrayList<>(sections);
+        sortedSections.sort(Comparator.comparingInt(s -> s.startIndex));
+        AttributeSection firstSection = sortedSections.get(0);
+        AttributeSection lastSection = sortedSections.get(sortedSections.size() - 1);
+        int firstAttributeIndex = firstSection.startIndex;
+        int lastAttributeIndex = lastSection.startIndex + lastSection.lineCount;
+
+        // Build new tooltip
+        List<Component> newTooltip = new ArrayList<>();
+        
+        // Copy lines before attributes
+        for (int i = 0; i < firstAttributeIndex; i++) {
+            newTooltip.add(tooltip.get(i));
+        }
+
+        // Add merged attribute section
+        Component finalHeader = getHeaderForSlotGroup(finalGroup);
+        newTooltip.add(finalHeader);
+        TooltipApplyResult applyResult = applyTextFor(stack, newTooltip::add, combinedModifiers, player);
+
+        // Copy lines after attributes
+        for (int i = lastAttributeIndex + 1; i < tooltip.size(); i++) {
+            newTooltip.add(tooltip.get(i));
+        }
+
+        // Replace tooltip contents
         tooltip.clear();
         tooltip.addAll(newTooltip);
-        return new ProcessingResult(true, finalHeader, applyResult.needsShiftPrompt);
+        
+        return applyResult.needsShiftPrompt;
     }
 
 
@@ -303,23 +315,17 @@ public class AttributeTooltipHandler {
 
 
     private static Component getHeaderForSlotGroup(EquipmentSlotGroup group) {
-        // Construct the key dynamically based on the enum constant name
-        String groupName = group.name().toLowerCase(Locale.ROOT);
-        String key = "item.modifiers." + groupName;
-
-        if (!key.startsWith("item.modifiers.")) { 
-             return Component.translatable(key).withStyle(ChatFormatting.GRAY);
-        }
-
+        // Use the serialized name from the enum (e.g., "mainhand")
+        String key = "item.modifiers." + group.getSerializedName();
         return Component.translatable(key).withStyle(ChatFormatting.GRAY);
     }
 
 
-    private static Multimap<Holder<Attribute>, AttributeModifier> getSortedModifiers(ItemStack stack, EquipmentSlotGroup slot) {
+    private static Multimap<Holder<Attribute>, AttributeModifier> getSortedModifiers(ItemStack stack, EquipmentSlotGroup slotGroup) {
         Multimap<Holder<Attribute>, AttributeModifier> map = LinkedListMultimap.create();
 
-        stack.forEachModifier(slot, (attributeHolder, modifier) -> {
-            if (attributeHolder != null && modifier != null) {
+        stack.forEachModifier(slotGroup, (attributeHolder, modifier, display) -> {
+            if (attributeHolder != null && modifier != null && display != ItemAttributeModifiers.Display.hidden()) {
                 map.put(attributeHolder, modifier);
             }
         });
@@ -369,7 +375,7 @@ public class AttributeTooltipHandler {
             Holder<Attribute> attr = entry.getKey();
             AttributeModifier modifier = entry.getValue();
 
-            if (isBaseModifier(attr.value(), modifier)) {
+            if (attr != null && modifier != null && isBaseModifier(attr.value(), modifier)) {
                 baseModifiersOutput.put(attr, new BaseModifier(modifier, new ArrayList<>()));
                 it.remove();
             }
@@ -380,6 +386,11 @@ public class AttributeTooltipHandler {
             var entry = it.next();
             Holder<Attribute> attr = entry.getKey();
             AttributeModifier modifier = entry.getValue();
+            
+            if (attr == null || modifier == null) {
+                continue;
+            }
+            
             BaseModifier base = baseModifiersOutput.get(attr);
 
             if (base != null && isBaseAttribute(attr.value())) {
@@ -400,6 +411,10 @@ public class AttributeTooltipHandler {
         for (var entry : baseModifiers.entrySet()) {
             Holder<Attribute> attr = entry.getKey();
             BaseModifier baseModifier = entry.getValue();
+            
+            if (attr == null || baseModifier == null) {
+                continue;
+            }
 
             double entityBase = player == null ? 0 : player.getAttributeBaseValue(attr);
             double baseValueFromModifier = baseModifier.base.amount();
@@ -437,15 +452,16 @@ public class AttributeTooltipHandler {
             }
 
             // --- INTEGRATION POINT for Attack Range ---
-             if (attr.value() == Attributes.ATTACK_SPEED.value()) {
-                 AttackRangeTooltipHandler.appendAttackRangeLines(stack, tooltip, player, result);
-             }
+//             if (attr.value() == Attributes.ATTACK_SPEED.value()) {
+//                 AttackRangeTooltipHandler.appendAttackRangeLines(stack, tooltip, player, result);
+//             }
              // --- END INTEGRATION POINT ---
 
             result.handledAttributes.add(attr);
         }
         
         BlockRangeTooltipHandler.appendBlockRangeLines(stack, tooltip, player, result);
+        EntityRangeTooltipHandler.appendEntityRangeLines(stack, tooltip, player, result);
     }
 
 
@@ -482,9 +498,15 @@ public class AttributeTooltipHandler {
         for (Map.Entry<Holder<Attribute>, Collection<AttributeModifier>> entry : sortedRemaining.entrySet()) {
             Holder<Attribute> attr = entry.getKey();
             Collection<AttributeModifier> modifiers = entry.getValue();
+            
+            if (attr == null || modifiers == null) {
+                continue;
+            }
 
-            // Skip if already handled OR if it's Block Interaction Range (handled separately later)
-            if (result.handledAttributes.contains(attr) || attr.value() == Attributes.BLOCK_INTERACTION_RANGE.value()) {
+            // Skip if already handled OR if it's Block/Entity Interaction Range (handled separately later)
+            if (result.handledAttributes.contains(attr) 
+                || attr.value() == Attributes.BLOCK_INTERACTION_RANGE.value()
+                || attr.value() == Attributes.ENTITY_INTERACTION_RANGE.value()) {
                   continue;
             }
             if (modifiers.isEmpty()) continue;
@@ -691,9 +713,35 @@ public class AttributeTooltipHandler {
     }
 
 
+    /**
+     * Extracts the EquipmentSlotGroup from a tooltip header component.
+     * Inverse of getHeaderForSlotGroup.
+     */
+    @Nullable
     public static EquipmentSlotGroup getSlotFromText(Component text) {
-        String content = text.getString();
-        return KEY_SLOT_MAP.get(content);
+        // Extract the translation key from the component
+        if (text.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents translatableContents) {
+            String key = translatableContents.getKey();
+            
+            // Parse "item.modifiers.{slotname}" or "tiered.slot.{slotname}"
+            String serializedName = null;
+            if (key.startsWith("item.modifiers.")) {
+                serializedName = key.substring("item.modifiers.".length());
+            } else if (key.startsWith("tiered.slot.")) {
+                serializedName = key.substring("tiered.slot.".length());
+            }
+            
+            if (serializedName != null) {
+                // Find the enum value by matching its serialized name (e.g., "mainhand")
+                for (EquipmentSlotGroup group : EquipmentSlotGroup.values()) {
+                    if (group.getSerializedName().equals(serializedName)) {
+                        return group;
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
 
 
