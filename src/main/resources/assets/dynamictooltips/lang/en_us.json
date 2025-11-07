@@ -8,6 +8,12 @@
   "dynamictooltips.configuration.attributes": "Attributes Settings",
   "dynamictooltips.configuration.appendBlockInteractionRangeTooltip": "Append Block Interaction Range",
   "dynamictooltips.configuration.appendBlockInteractionRangeTooltip.tooltip": "Append Block Interaction Range attribute line to relevant tooltips (e.g., tools).",
+  "dynamictooltips.configuration.blockInteractionRangeItemTags": "Block Range Item Tags",
+  "dynamictooltips.configuration.blockInteractionRangeItemTags.tooltip": "Items or tags that should display Block Interaction Range tooltips.\nFormat: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\nDefault includes common mining tools (pickaxes, axes, shovels, hoes, shears).\nExamples:\n  \"minecraft:diamond_pickaxe\" - specific item\n  \"#minecraft:enchantable/mining\" - all items in tag",
+  "dynamictooltips.configuration.appendEntityInteractionRangeTooltip": "Append Entity Interaction Range",
+  "dynamictooltips.configuration.appendEntityInteractionRangeTooltip.tooltip": "Append Entity Interaction Range attribute line to relevant tooltips (e.g., weapons).",
+  "dynamictooltips.configuration.entityInteractionRangeItemTags": "Entity Range Item Tags",
+  "dynamictooltips.configuration.entityInteractionRangeItemTags.tooltip": "Items or tags that should display Entity Interaction Range tooltips.\nFormat: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\nDefault includes weapon-related enchantable tags.\nExamples:\n  \"minecraft:diamond_sword\" - specific item\n  \"#minecraft:enchantable/weapon\" - all items in tag",
   "dynamictooltips.configuration.attributeColorOverrides": "Attribute Color Overrides",
   "dynamictooltips.configuration.attributeColorOverrides.tooltip": "Define custom color rules for specific attributes in tooltips.\nFormat: \"attribute_id:LOGIC[:#HEXCOLOR]\".\n  attribute_id: The ResourceLocation of the attribute (e.g., minecraft:generic.movement_speed).\n  LOGIC: How to color the modifier value. Options: INVERTED, FIXED.\n    INVERTED: Use the opposite of the attribute's default sentiment coloring (e.g., positive value = red).\n    FIXED: Always use the specified hex color, regardless of value.\n  :#HEXCOLOR: Required only if LOGIC is FIXED. The hex color code (e.g., #RRGGBB).\n  (If no rule is specified for an attribute, vanilla default coloring is used).",
 

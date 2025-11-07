@@ -41,7 +41,7 @@ dependencies {
 
     //
 	modImplementation("fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${project.forge_config_api_version}")
-	// modImplementation("com.terraformersmc:modmenu:${project.modmenu_version}") {transitive false}
+	modImplementation("com.terraformersmc:modmenu:${project.modmenu_version}")
 
 	modImplementation(include(annotationProcessor("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.3.3")))
 

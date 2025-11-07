@@ -2,7 +2,6 @@
 - Update to 1.21.10
 - Add Entity Interaction Range append option
 - Which items receive Entity Interaction and Block Range tooltip is now configurable
-- No mod menu support yet!
 
 ## 0.5.0
 - Added Mod Menu config support - **Slight changes to the config structure, you may need to reapply config changes you've made**  
