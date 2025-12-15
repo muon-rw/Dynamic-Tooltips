@@ -1,3 +1,6 @@
+## 0.7.0
+- Update to 1.21.11
+
 ## 0.6.0
 - Update to 1.21.10
 - Add Entity Interaction Range append option

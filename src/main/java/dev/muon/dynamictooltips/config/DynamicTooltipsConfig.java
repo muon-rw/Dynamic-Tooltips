@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.jetbrains.annotations.Nullable;
@@ -116,7 +116,7 @@ public class DynamicTooltipsConfig {
                 .comment(
                     "Define custom color rules for specific attributes in tooltips.",
                     "Format: \"attribute_id:LOGIC[:#HEXCOLOR]\"",
-                    "  attribute_id: The ResourceLocation of the attribute (e.g., minecraft:generic.movement_speed).",
+                    "  attribute_id: The Identifier of the attribute (e.g., minecraft:generic.movement_speed).",
                     "  LOGIC: How to color the modifier value. Options: INVERTED, FIXED.",
                     "    INVERTED: Use the opposite of the attribute's default sentiment coloring (e.g., positive value = red).",
                     "    FIXED: Always use the specified hex color, regardless of value.",
@@ -140,23 +140,23 @@ public class DynamicTooltipsConfig {
 
         }
 
-        public record AttributeColorRule(ResourceLocation attributeId, ColorLogic logic, @Nullable ChatFormatting fixedColor, @Nullable String hexColor) {}
+        public record AttributeColorRule(Identifier attributeId, ColorLogic logic, @Nullable ChatFormatting fixedColor, @Nullable String hexColor) {}
 
         private static boolean validateHexColor(Object obj) {
             if (!(obj instanceof String str)) return false;
             return HEX_COLOR_PATTERN.matcher(str).matches();
         }
 
-        private static boolean validateResourceLocation(Object obj) {
+        private static boolean validateIdentifier(Object obj) {
             if (!(obj instanceof String str)) return false;
-            return ResourceLocation.tryParse(str) != null;
+            return Identifier.tryParse(str) != null;
         }
 
         private static boolean validateItemOrTag(Object obj) {
             if (!(obj instanceof String str)) return false;
             // Strip # prefix if present for validation
             String toValidate = str.startsWith("#") ? str.substring(1) : str;
-            return ResourceLocation.tryParse(toValidate) != null;
+            return Identifier.tryParse(toValidate) != null;
         }
 
         /**
@@ -169,7 +169,7 @@ public class DynamicTooltipsConfig {
         public static boolean matchesItemOrTag(net.minecraft.world.item.ItemStack stack, String entry) {
             if (entry.startsWith("#")) {
                 // Tag specification
-                ResourceLocation tagId = ResourceLocation.tryParse(entry.substring(1));
+                Identifier tagId = Identifier.tryParse(entry.substring(1));
                 if (tagId != null) {
                     TagKey<net.minecraft.world.item.Item> tag =
                         TagKey.create(Registries.ITEM, tagId);
@@ -177,7 +177,7 @@ public class DynamicTooltipsConfig {
                 }
             } else {
                 // Direct item ID specification
-                ResourceLocation itemId = ResourceLocation.tryParse(entry);
+                Identifier itemId = Identifier.tryParse(entry);
                 if (itemId != null) {
                     var holderOptional = BuiltInRegistries.ITEM.get(itemId);
                     if (holderOptional.isPresent()) {
@@ -195,9 +195,9 @@ public class DynamicTooltipsConfig {
             // Expect format: namespace:path:LOGIC[:#HEXCOLOR]
             if (parts.length < 3 || parts.length > 4) return false;
 
-            // Reconstruct potential ResourceLocation string
+            // Reconstruct potential Identifier string
             String potentialId = parts[0] + ":" + parts[1];
-            if (ResourceLocation.tryParse(potentialId) == null) {
+            if (Identifier.tryParse(potentialId) == null) {
                 return false;
             }
 
@@ -225,7 +225,7 @@ public class DynamicTooltipsConfig {
              String[] parts = rule.split(":");
              if (parts.length < 3 || parts.length > 4) return null;
 
-             ResourceLocation attributeId = ResourceLocation.tryParse(parts[0] + ":" + parts[1]);
+             Identifier attributeId = Identifier.tryParse(parts[0] + ":" + parts[1]);
              if (attributeId == null) return null;
 
              String logicStr = parts[2].toUpperCase();

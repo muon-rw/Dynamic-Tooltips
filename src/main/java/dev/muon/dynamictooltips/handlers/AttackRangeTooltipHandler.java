@@ -9,7 +9,7 @@ package dev.muon.dynamictooltips.handlers;
 //import net.minecraft.client.player.LocalPlayer;
 //import net.minecraft.network.chat.Component;
 //import net.minecraft.network.chat.MutableComponent;
-//import net.minecraft.resources.ResourceLocation;
+//import net.minecraft.resources.Identifier;
 //import net.minecraft.world.entity.EquipmentSlotGroup;
 //import net.minecraft.world.entity.ai.attributes.Attribute;
 //import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -111,7 +111,7 @@ public class AttackRangeTooltipHandler {
 //            }
 //        }
 //
-//        void removeModifierById(ResourceLocation id) {
+//        void removeModifierById(Identifier id) {
 //            applicableModifiers.removeIf(m -> m.id().equals(id));
 //        }
 //

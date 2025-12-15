@@ -14,12 +14,12 @@ import java.util.*;
 import java.util.function.Consumer;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -40,17 +40,17 @@ import dev.muon.dynamictooltips.Keybindings;
 public class AttributeTooltipHandler {
     private static final Logger LOGGER = DynamicTooltips.LOGGER;
     private static final DecimalFormat FORMAT = new DecimalFormat("#.##", new DecimalFormatSymbols(Locale.ROOT));
-    private static final ResourceLocation FAKE_MERGED_ID = ResourceLocation.fromNamespaceAndPath(DynamicTooltips.MODID, "fake_merged_modifier");
+    private static final Identifier FAKE_MERGED_ID = Identifier.fromNamespaceAndPath(DynamicTooltips.MODID, "fake_merged_modifier");
 
     static final ChatFormatting BASE_COLOR = ChatFormatting.DARK_GREEN;
     public static final int MERGE_BASE_MODIFIER_COLOR = 16758784; // Gold
     public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
 
     // Lazy-loaded map for parsed config rules
-    private static Map<ResourceLocation, DynamicTooltipsConfig.Client.AttributeColorRule> parsedAttributeColorRules = null;
+    private static Map<Identifier, DynamicTooltipsConfig.Client.AttributeColorRule> parsedAttributeColorRules = null;
 
     // Gets the parsed rule map, initializing it from config on first call
-    private static Map<ResourceLocation, DynamicTooltipsConfig.Client.AttributeColorRule> getParsedAttributeColorRules() {
+    private static Map<Identifier, DynamicTooltipsConfig.Client.AttributeColorRule> getParsedAttributeColorRules() {
         if (parsedAttributeColorRules == null) {
             parsedAttributeColorRules = new HashMap<>();
             List<? extends String> ruleStrings = DynamicTooltipsConfig.CLIENT.attributeColorOverrides.get();
@@ -69,7 +69,7 @@ public class AttributeTooltipHandler {
     // Helper to get the rule for a specific attribute
     @Nullable
     private static DynamicTooltipsConfig.Client.AttributeColorRule getAttributeColorRule(Attribute attribute) {
-        ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+        Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         if (attrId == null) return null;
         return getParsedAttributeColorRules().get(attrId);
     }
@@ -81,21 +81,21 @@ public class AttributeTooltipHandler {
 
 
     // Attributes that should be treated as "base" modifiers: Display a base value as green, gold when merged
-    private static final Set<ResourceLocation> BASE_ATTRIBUTE_IDS = Util.make(new HashSet<>(), set -> {
+    private static final Set<Identifier> BASE_ATTRIBUTE_IDS = Util.make(new HashSet<>(), set -> {
         set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_DAMAGE.value()));
         set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_SPEED.value()));
         set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ENTITY_INTERACTION_RANGE.value()));
-        set.add(ResourceLocation.fromNamespaceAndPath("ranged_weapon", "damage"));
-        set.add(ResourceLocation.fromNamespaceAndPath("ranged_weapon", "pull_time"));
+        set.add(Identifier.fromNamespaceAndPath("ranged_weapon", "damage"));
+        set.add(Identifier.fromNamespaceAndPath("ranged_weapon", "pull_time"));
         set.remove(null);
     });
 
     // TODO: Can these be inferred safely?
-    private static final Map<ResourceLocation, ResourceLocation> BASE_MODIFIER_IDS = Util.make(new HashMap<>(), map -> {
+    private static final Map<Identifier, Identifier> BASE_MODIFIER_IDS = Util.make(new HashMap<>(), map -> {
         map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_DAMAGE.value()), Item.BASE_ATTACK_DAMAGE_ID);
         map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_SPEED.value()), Item.BASE_ATTACK_SPEED_ID);
-        map.put(ResourceLocation.fromNamespaceAndPath("ranged_weapon", "damage"), ResourceLocation.fromNamespaceAndPath("ranged_weapon", "base_damage"));
-        map.put(ResourceLocation.fromNamespaceAndPath("ranged_weapon", "pull_time"), ResourceLocation.fromNamespaceAndPath("ranged_weapon", "base_pull_time"));
+        map.put(Identifier.fromNamespaceAndPath("ranged_weapon", "damage"), Identifier.fromNamespaceAndPath("ranged_weapon", "base_damage"));
+        map.put(Identifier.fromNamespaceAndPath("ranged_weapon", "pull_time"), Identifier.fromNamespaceAndPath("ranged_weapon", "base_pull_time"));
         map.remove(null);
     });
 
@@ -105,7 +105,7 @@ public class AttributeTooltipHandler {
     private static Set<String> getModifierIdKeys(Multimap<Holder<Attribute>, AttributeModifier> map) {
         Set<String> keys = new HashSet<>();
         map.forEach((attrHolder, mod) -> {
-            ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
+            Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
             if (attrId != null) {
                 keys.add(attrId + ":" + mod.id());
             }
@@ -296,14 +296,14 @@ public class AttributeTooltipHandler {
 
         Set<String> existingIds = new HashSet<>();
         target.forEach((attrHolder, mod) -> {
-            ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
+            Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
             if (attrId != null) {
                 existingIds.add(attrId + ":" + mod.id());
             }
         });
 
         source.forEach((attrHolder, mod) -> {
-            ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
+            Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attrHolder.value());
             if (attrId != null) {
                 String key = attrId + ":" + mod.id();
                 if (!existingIds.contains(key)) {
@@ -606,7 +606,7 @@ public class AttributeTooltipHandler {
         }
 
         ChatFormatting color = ChatFormatting.WHITE; // Default fallback
-        ResourceLocation attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+        Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         boolean handledByRule = false;
         Integer fixedColorInt = null; // For parsed hex color
 
@@ -674,19 +674,19 @@ public class AttributeTooltipHandler {
 
 
     private static boolean isBaseAttribute(Attribute attribute) {
-        ResourceLocation id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+        Identifier id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         return id != null && BASE_ATTRIBUTE_IDS.contains(id);
     }
 
     private static boolean isBaseModifier(Attribute attribute, AttributeModifier modifier) {
-        ResourceLocation baseId = getBaseModifierId(attribute);
+        Identifier baseId = getBaseModifierId(attribute);
         return modifier.id().equals(baseId);
     }
 
 
     @Nullable
-    private static ResourceLocation getBaseModifierId(Attribute attribute) {
-        ResourceLocation id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+    private static Identifier getBaseModifierId(Attribute attribute) {
+        Identifier id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         return id != null ? BASE_MODIFIER_IDS.get(id) : null;
     }
 

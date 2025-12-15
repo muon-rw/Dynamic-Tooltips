@@ -30,7 +30,7 @@ import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler.TooltipApplyRes
 import java.util.stream.Collectors;
 import java.util.Set;
 import net.minecraft.world.entity.EquipmentSlotGroup;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 
 public class BlockRangeTooltipHandler {
@@ -95,7 +95,7 @@ public class BlockRangeTooltipHandler {
             });
         }
         
-        Set<ResourceLocation> equippedIds = equippedItemModifiers.stream().map(AttributeModifier::id).collect(Collectors.toSet());
+        Set<Identifier> equippedIds = equippedItemModifiers.stream().map(AttributeModifier::id).collect(Collectors.toSet());
         
         // Add modifiers from the player instance that are NOT from the currently equipped mainhand item
         for(AttributeModifier mod : allCurrentModifiers) {

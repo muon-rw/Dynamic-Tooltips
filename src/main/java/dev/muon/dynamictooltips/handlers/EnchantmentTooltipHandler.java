@@ -8,7 +8,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -76,7 +76,7 @@ public class EnchantmentTooltipHandler {
     }
 
     public void insertDescriptions(Holder<Enchantment> enchantment, int level, Consumer<Component> lines) {
-        final Component description = getDescription(enchantment, enchantment.unwrapKey().orElseThrow().location(), level);
+        final Component description = getDescription(enchantment, enchantment.unwrapKey().orElseThrow().identifier(), level);
         if (description != null) {
             String hexColor = DynamicTooltipsConfig.CLIENT.enchantmentDescriptionColor.get();
             int color = Integer.parseInt(hexColor.substring(1), 16);
@@ -91,7 +91,7 @@ public class EnchantmentTooltipHandler {
     }
 
     @Nullable
-    private Component getDescription(Holder<Enchantment> enchantment, ResourceLocation id, int level) {
+    private Component getDescription(Holder<Enchantment> enchantment, Identifier id, int level) {
         Component description = findTranslation("enchantment." + id.getNamespace() + "." + id.getPath() + ".", level);
 
         if (description == null && enchantment.value().description().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents translatable) {

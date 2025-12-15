@@ -7,7 +7,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -91,7 +91,7 @@ public class EntityRangeTooltipHandler {
             });
         }
 
-        Set<ResourceLocation> equippedIds = equippedItemModifiers.stream()
+        Set<Identifier> equippedIds = equippedItemModifiers.stream()
             .map(AttributeModifier::id)
             .collect(Collectors.toSet());
 
