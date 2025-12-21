@@ -4,6 +4,7 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import dev.muon.dynamictooltips.DynamicTooltips;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -28,8 +29,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-//import net.bettercombat.api.WeaponAttributes;
-//import net.bettercombat.logic.WeaponRegistry;
+import net.bettercombat.api.WeaponAttributes;
+import net.bettercombat.logic.WeaponRegistry;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 import dev.muon.dynamictooltips.Keybindings;
 
@@ -272,6 +273,16 @@ public class AttributeTooltipHandler {
             newTooltip.add(tooltip.get(i));
         }
 
+        // --- Add "Two-Handed" line if applicable (Better Combat Integration) ---
+        // Necessary because we cancel the original two-handed injection with a mixin
+        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
+            WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
+            if (weaponAttributes != null && weaponAttributes.isTwoHanded()) {
+                newTooltip.add(Component.translatable("item.held.two_handed").withStyle(ChatFormatting.GRAY));
+            }
+        }
+        // --- End Better Combat Integration ---
+
         // Add merged attribute section
         Component finalHeader = getHeaderForSlotGroup(finalGroup);
         newTooltip.add(finalHeader);
@@ -451,17 +462,15 @@ public class AttributeTooltipHandler {
                 }
             }
 
-            // --- INTEGRATION POINT for Attack Range ---
-//             if (attr.value() == Attributes.ATTACK_SPEED.value()) {
-//                 AttackRangeTooltipHandler.appendAttackRangeLines(stack, tooltip, player, result);
-//             }
-             // --- END INTEGRATION POINT ---
-
             result.handledAttributes.add(attr);
         }
         
         BlockRangeTooltipHandler.appendBlockRangeLines(stack, tooltip, player, result);
-        EntityRangeTooltipHandler.appendEntityRangeLines(stack, tooltip, player, result);
+        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
+            AttackRangeTooltipHandler.appendAttackRangeLines(stack, tooltip, player, result);
+        } else {
+            EntityRangeTooltipHandler.appendEntityRangeLines(stack, tooltip, player, result);
+        }
     }
 
 

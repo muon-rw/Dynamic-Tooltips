@@ -4,10 +4,11 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "dev.muon.dynamictooltips.mixin.MixinConfigPlugin",
   "mixins": [
-    "accessor.KeyMappingAccessor",
     "EnchantmentMixin",
     "ItemEnchantmentsMixin",
-    "ItemStackMixin"
+    "ItemStackMixin",
+    "accessor.KeyMappingAccessor",
+    "compat.bettercombat.WeaponAttributeTooltipMixin"
   ],
   "client": [
   ],

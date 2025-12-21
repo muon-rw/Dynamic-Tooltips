@@ -1,3 +1,6 @@
+## 0.7.1
+- Re-add Better Combat support
+
 ## 0.7.0
 - Update to 1.21.11
 
