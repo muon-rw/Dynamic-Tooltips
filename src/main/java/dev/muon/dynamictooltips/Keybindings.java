@@ -3,7 +3,7 @@ package dev.muon.dynamictooltips;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import dev.muon.dynamictooltips.mixin.accessor.KeyMappingAccessor;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
@@ -15,7 +15,7 @@ public class Keybindings {
     public static KeyMapping SHOW_DETAILS_KEY;
 
     public static void register() {
-        SHOW_DETAILS_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        SHOW_DETAILS_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 KEY_SHOW_DETAILS,
                 GLFW.GLFW_KEY_LEFT_SHIFT,
                 new KeyMapping.Category(DynamicTooltips.id(KEY_CATEGORY))
