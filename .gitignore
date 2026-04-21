@@ -40,6 +40,5 @@ replay_*.log
 *.hprof
 *.jfr
 
-# MixinMCP auto-injected rules
-.cursor/rules/mixinmcp.mdc
-.cursor/rules/mixin-reference.mdc
+.cursor/
+.claude/
