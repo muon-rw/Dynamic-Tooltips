@@ -1,3 +1,7 @@
+## 0.8.0
+- Update to 26.1.2
+- No Better Combat or Tiered support yet
+
 ## 0.7.1
 - Re-add Better Combat support
 
