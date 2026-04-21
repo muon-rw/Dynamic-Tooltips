@@ -41,7 +41,7 @@ public class EntityRangeTooltipHandler {
             @Nullable Player player, 
             AttributeTooltipHandler.TooltipApplyResult result) {
         
-        if (!DynamicTooltipsConfig.CLIENT.appendEntityInteractionRangeTooltip.get()) {
+        if (!DynamicTooltipsConfig.INSTANCE.appendEntityInteractionRangeTooltip.get()) {
             return;
         }
 
@@ -50,8 +50,8 @@ public class EntityRangeTooltipHandler {
         }
 
         // Check if item matches any of the configured items or tags
-        boolean isRelevantWeapon = DynamicTooltipsConfig.CLIENT.entityInteractionRangeItemTags.get().stream()
-            .anyMatch(entry -> DynamicTooltipsConfig.Client.matchesItemOrTag(stack, entry));
+        boolean isRelevantWeapon = DynamicTooltipsConfig.INSTANCE.entityInteractionRangeItemTags.get().stream()
+            .anyMatch(entry -> DynamicTooltipsConfig.matchesItemOrTag(stack, entry));
 
         if (!isRelevantWeapon) {
             return;

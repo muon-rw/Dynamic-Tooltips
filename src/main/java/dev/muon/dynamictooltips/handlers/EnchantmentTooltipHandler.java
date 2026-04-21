@@ -60,7 +60,7 @@ public class EnchantmentTooltipHandler {
     }
 
     public static boolean itemHasExpandableEnchantments(ItemStack stack) {
-        return DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() &&
+        return DynamicTooltipsConfig.INSTANCE.collapseEnchantmentTooltipsOnGear.get() &&
                hasEnchantments(stack) &&
                !(stack.getItem() == Items.ENCHANTED_BOOK);
     }
@@ -72,13 +72,13 @@ public class EnchantmentTooltipHandler {
         if (stack.getItem() == Items.ENCHANTED_BOOK) {
             return true;
         }
-        return !DynamicTooltipsConfig.CLIENT.collapseEnchantmentTooltipsOnGear.get() || Keybindings.isDetailedView();
+        return !DynamicTooltipsConfig.INSTANCE.collapseEnchantmentTooltipsOnGear.get() || Keybindings.isDetailedView();
     }
 
     public void insertDescriptions(Holder<Enchantment> enchantment, int level, Consumer<Component> lines) {
         final Component description = getDescription(enchantment, enchantment.unwrapKey().orElseThrow().identifier(), level);
         if (description != null) {
-            String hexColor = DynamicTooltipsConfig.CLIENT.enchantmentDescriptionColor.get();
+            String hexColor = DynamicTooltipsConfig.INSTANCE.enchantmentDescriptionColor.get();
             int color = Integer.parseInt(hexColor.substring(1), 16);
             Style descriptionStyle = Style.EMPTY
                     .withColor(color)

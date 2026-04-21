@@ -4,7 +4,7 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import dev.muon.dynamictooltips.DynamicTooltips;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
-import net.fabricmc.loader.api.FabricLoader;
+// import net.fabricmc.loader.api.FabricLoader; // BC stashed for 26.1.2
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -29,8 +29,10 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.bettercombat.api.WeaponAttributes;
-import net.bettercombat.logic.WeaponRegistry;
+// Better Combat is NOT YET UPDATED for 26.1.2 — integration stashed; re-enable alongside
+// AttackRangeTooltipHandler / WeaponAttributeTooltipMixin when BC updates.
+// import net.bettercombat.api.WeaponAttributes;
+// import net.bettercombat.logic.WeaponRegistry;
 import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 import dev.muon.dynamictooltips.Keybindings;
 
@@ -48,15 +50,15 @@ public class AttributeTooltipHandler {
     public static final int MERGED_MODIFIER_COLOR = 7699710; // Light Blue
 
     // Lazy-loaded map for parsed config rules
-    private static Map<Identifier, DynamicTooltipsConfig.Client.AttributeColorRule> parsedAttributeColorRules = null;
+    private static Map<Identifier, DynamicTooltipsConfig.AttributeColorRule> parsedAttributeColorRules = null;
 
     // Gets the parsed rule map, initializing it from config on first call
-    private static Map<Identifier, DynamicTooltipsConfig.Client.AttributeColorRule> getParsedAttributeColorRules() {
+    private static Map<Identifier, DynamicTooltipsConfig.AttributeColorRule> getParsedAttributeColorRules() {
         if (parsedAttributeColorRules == null) {
             parsedAttributeColorRules = new HashMap<>();
-            List<? extends String> ruleStrings = DynamicTooltipsConfig.CLIENT.attributeColorOverrides.get();
+            List<? extends String> ruleStrings = DynamicTooltipsConfig.INSTANCE.attributeColorOverrides.get();
             for (String ruleStr : ruleStrings) {
-                DynamicTooltipsConfig.Client.AttributeColorRule parsedRule = DynamicTooltipsConfig.Client.parseRuleString(ruleStr);
+                DynamicTooltipsConfig.AttributeColorRule parsedRule = DynamicTooltipsConfig.parseRuleString(ruleStr);
                 if (parsedRule != null) {
                     parsedAttributeColorRules.put(parsedRule.attributeId(), parsedRule);
                 } else {
@@ -69,7 +71,7 @@ public class AttributeTooltipHandler {
     
     // Helper to get the rule for a specific attribute
     @Nullable
-    private static DynamicTooltipsConfig.Client.AttributeColorRule getAttributeColorRule(Attribute attribute) {
+    private static DynamicTooltipsConfig.AttributeColorRule getAttributeColorRule(Attribute attribute) {
         Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
         if (attrId == null) return null;
         return getParsedAttributeColorRules().get(attrId);
@@ -273,14 +275,16 @@ public class AttributeTooltipHandler {
             newTooltip.add(tooltip.get(i));
         }
 
-        // --- Add "Two-Handed" line if applicable (Better Combat Integration) ---
-        // Necessary because we cancel the original two-handed injection with a mixin
+        // --- Better Combat Two-Handed line (BC not updated for 26.1.2) ---
+        // Restore this block alongside AttackRangeTooltipHandler when BC updates.
+        /*
         if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
             WeaponAttributes weaponAttributes = WeaponRegistry.getAttributes(stack);
             if (weaponAttributes != null && weaponAttributes.isTwoHanded()) {
                 newTooltip.add(Component.translatable("item.held.two_handed").withStyle(ChatFormatting.GRAY));
             }
         }
+        */
         // --- End Better Combat Integration ---
 
         // Add merged attribute section
@@ -466,11 +470,8 @@ public class AttributeTooltipHandler {
         }
         
         BlockRangeTooltipHandler.appendBlockRangeLines(stack, tooltip, player, result);
-        if (FabricLoader.getInstance().isModLoaded("bettercombat")) {
-            AttackRangeTooltipHandler.appendAttackRangeLines(stack, tooltip, player, result);
-        } else {
-            EntityRangeTooltipHandler.appendEntityRangeLines(stack, tooltip, player, result);
-        }
+        // Better Combat not updated for 26.1.2 — always go through EntityRangeTooltipHandler for now.
+        EntityRangeTooltipHandler.appendEntityRangeLines(stack, tooltip, player, result);
     }
 
 
@@ -620,7 +621,7 @@ public class AttributeTooltipHandler {
         Integer fixedColorInt = null; // For parsed hex color
 
         // 1. Check config map first
-        DynamicTooltipsConfig.Client.AttributeColorRule rule = getAttributeColorRule(attribute);
+        DynamicTooltipsConfig.AttributeColorRule rule = getAttributeColorRule(attribute);
         if (rule != null) {
             handledByRule = true;
             switch (rule.logic()) {

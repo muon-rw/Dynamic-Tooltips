@@ -26,10 +26,10 @@
 		"dynamictooltips.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.17.3",
-		"minecraft": ">=1.21.11",
-		"java": ">=21",
+		"fabricloader": ">=0.18.0",
+		"minecraft": ">=26.1.2",
+		"java": ">=25",
 		"fabric-api": "*",
-		"forgeconfigapiport": ">=21.11.0"
+		"fzzy_config": "*"
 	}
 }

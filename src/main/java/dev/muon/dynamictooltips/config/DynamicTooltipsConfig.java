@@ -1,20 +1,34 @@
 package dev.muon.dynamictooltips.config;
 
-import com.google.common.collect.Lists;
+import dev.muon.dynamictooltips.DynamicTooltips;
+import me.fzzyhmstrs.fzzy_config.annotations.Comment;
+import me.fzzyhmstrs.fzzy_config.api.ConfigApi;
+import me.fzzyhmstrs.fzzy_config.api.RegisterType;
+import me.fzzyhmstrs.fzzy_config.config.Config;
+import me.fzzyhmstrs.fzzy_config.validation.collection.ValidatedList;
+import me.fzzyhmstrs.fzzy_config.validation.misc.ValidatedBoolean;
+import me.fzzyhmstrs.fzzy_config.validation.misc.ValidatedString;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-public class DynamicTooltipsConfig {
+/**
+ * Client-only FzzyConfig. Holds all Dynamic Tooltips display preferences.
+ *
+ * <p>File: <code>config/dynamictooltips/dynamictooltips-client.toml</code>
+ */
+public class DynamicTooltipsConfig extends Config {
 
-    public static final ModConfigSpec CLIENT_SPEC;
-    public static final Client CLIENT;
+    public static DynamicTooltipsConfig INSTANCE;
 
     // Hex color validation pattern (#RRGGBB)
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#([a-fA-F0-9]{6})$");
@@ -23,230 +37,132 @@ public class DynamicTooltipsConfig {
         INVERTED, FIXED
     }
 
-    static {
-        ModConfigSpec.Builder clientBuilder = new ModConfigSpec.Builder();
-        CLIENT = new Client(clientBuilder);
-        CLIENT_SPEC = clientBuilder.build();
+    public DynamicTooltipsConfig() {
+        super(Identifier.fromNamespaceAndPath(DynamicTooltips.MODID, "client"));
     }
 
-
-    public static class Client {
-        public final ModConfigSpec.BooleanValue appendBlockInteractionRangeTooltip;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> blockInteractionRangeItemTags;
-        public final ModConfigSpec.BooleanValue appendEntityInteractionRangeTooltip;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> entityInteractionRangeItemTags;
-        public final ModConfigSpec.BooleanValue showUsabilityHint;
-        public final ModConfigSpec.BooleanValue collapseEnchantmentTooltipsOnGear;
-        public final ModConfigSpec.ConfigValue<String> enchantmentDescriptionColor;
-        public final ModConfigSpec.ConfigValue<String> superLeveledEnchantmentColor;
-        public final ModConfigSpec.BooleanValue colorEnchantmentNames;
-        public final ModConfigSpec.ConfigValue<String> enchantmentNameColor;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> attributeColorOverrides;
-
-        Client(ModConfigSpec.Builder builder) {
-
-            appendBlockInteractionRangeTooltip = builder
-                .comment("Append Block Interaction Range attribute line to relevant tooltips (pickaxes, shovels, etc.)")
-                .define("appendBlockInteractionRangeTooltip", true);
-
-            blockInteractionRangeItemTags = builder
-                .comment(
-                    "Items or tags that should display Block Interaction Range tooltips.",
-                    "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.",
-                    "Default includes common mining tools (pickaxes, axes, shovels, hoes, shears).",
-                    "Examples:",
-                    "  \"minecraft:diamond_pickaxe\" - specific item",
-                    "  \"#minecraft:enchantable/mining\" - all items in tag"
-                )
-                .defineListAllowEmpty("blockInteractionRangeItemTags",
-                    Lists.newArrayList(
-                        "#minecraft:enchantable/mining"
-                    ),
-                    Client::validateItemOrTag
-                );
-
-            appendEntityInteractionRangeTooltip = builder
-                .comment("Append Entity Interaction Range attribute line to relevant tooltips (swords, etc.)")
-                .define("appendEntityInteractionRangeTooltip", true);
-
-            entityInteractionRangeItemTags = builder
-                .comment(
-                    "Items or tags that should display Entity Interaction Range tooltips.",
-                    "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.",
-                    "Default includes weapon-related enchantable tags.",
-                    "Examples:",
-                    "  \"minecraft:diamond_sword\" - specific item",
-                    "  \"#minecraft:enchantable/weapon\" - all items in tag"
-                )
-                .defineListAllowEmpty("entityInteractionRangeItemTags",
-                    Lists.newArrayList(
-                        "#minecraft:enchantable/weapon",
-                        "#minecraft:enchantable/trident",
-                        "#minecraft:enchantable/fire_aspect",
-                        "#minecraft:enchantable/sharp_weapon"
-                    ),
-                    Client::validateItemOrTag
-                );
-
-            showUsabilityHint = builder
-                    .comment("Show the 'Hold [Shift] to expand...' hint in tooltips that have merged attributes or collapsed enchantments.")
-                    .define("showUsabilityHint", false);
-
-            collapseEnchantmentTooltipsOnGear = builder
-                    .comment("Collapse enchantment descriptions on gear, requiring Shift to be held to view them. \n\nEnchanted Books always show descriptions.")
-                    .define("collapseEnchantmentTooltipsOnGear", true);
-
-            colorEnchantmentNames = builder
-                    .comment("Enable custom coloring of enchantments in tooltips.")
-                    .define("colorEnchantmentNames", true);
-
-            enchantmentNameColor = builder
-                    .comment("Hex color code (#RRGGBB) for regular enchantment names (if colorEnchantmentNames is true). Curses are always red.")
-                    .define("enchantmentNameColor", "#AAAAAA", Client::validateHexColor);
-
-            enchantmentDescriptionColor = builder
-                    .comment("Hex color code (#RRGGBB) for enchantment description text.")
-                    .define("enchantmentDescriptionColor", "#808080", Client::validateHexColor);
-
-            superLeveledEnchantmentColor = builder
-                    .comment("Hex color code (#RRGGBB) for enchantments above their max level (excluding curses) if colorEnchantmentNames is true.")
-                    .define("superLeveledEnchantmentColor", "#FF55FF", Client::validateHexColor);
-
-            attributeColorOverrides = builder
-                .comment(
-                    "Define custom color rules for specific attributes in tooltips.",
-                    "Format: \"attribute_id:LOGIC[:#HEXCOLOR]\"",
-                    "  attribute_id: The Identifier of the attribute (e.g., minecraft:generic.movement_speed).",
-                    "  LOGIC: How to color the modifier value. Options: INVERTED, FIXED.",
-                    "    INVERTED: Use the opposite of the attribute's default sentiment coloring (e.g., positive value = red).",
-                    "    FIXED: Always use the specified hex color, regardless of value.",
-                    "  :#HEXCOLOR: Required only if LOGIC is FIXED. The hex color code (e.g., #RRGGBB).",
-                    "  (If no rule is specified for an attribute, vanilla default coloring is used)."
-                )
-                .defineListAllowEmpty("attributeColorOverrides",
-                    Lists.newArrayList(
-                        "additionalentityattributes:generic.hitbox_height:FIXED:#808080", // Gray
-                        "additionalentityattributes:generic.hitbox_width:FIXED:#808080",  // Gray
-                        "additionalentityattributes:generic.model_height:FIXED:#808080", // Gray
-                        "additionalentityattributes:generic.model_width:FIXED:#808080",  // Gray
-                        "additionalentityattributes:generic.height:FIXED:#808080",      // Gray
-                        "additionalentityattributes:generic.width:FIXED:#808080",       // Gray
-                        "additionalentityattributes:generic.model_scale:FIXED:#808080",  // Gray
-                        "additionalentityattributes:generic.mob_detection_range:INVERTED",
-                        "ranged_weapon:pull_time:INVERTED"
-                    ),
-                    Client::validateAttributeColorRule
-                );
-
-        }
-
-        public record AttributeColorRule(Identifier attributeId, ColorLogic logic, @Nullable ChatFormatting fixedColor, @Nullable String hexColor) {}
-
-        private static boolean validateHexColor(Object obj) {
-            if (!(obj instanceof String str)) return false;
-            return HEX_COLOR_PATTERN.matcher(str).matches();
-        }
-
-        private static boolean validateIdentifier(Object obj) {
-            if (!(obj instanceof String str)) return false;
-            return Identifier.tryParse(str) != null;
-        }
-
-        private static boolean validateItemOrTag(Object obj) {
-            if (!(obj instanceof String str)) return false;
-            // Strip # prefix if present for validation
-            String toValidate = str.startsWith("#") ? str.substring(1) : str;
-            return Identifier.tryParse(toValidate) != null;
-        }
-
-        /**
-         * Checks if an ItemStack matches an item/tag specification string.
-         * 
-         * @param stack The ItemStack to check
-         * @param entry Format: "namespace:path" for items, "#namespace:path" for tags
-         * @return true if the stack matches the specification
-         */
-        public static boolean matchesItemOrTag(net.minecraft.world.item.ItemStack stack, String entry) {
-            if (entry.startsWith("#")) {
-                // Tag specification
-                Identifier tagId = Identifier.tryParse(entry.substring(1));
-                if (tagId != null) {
-                    TagKey<net.minecraft.world.item.Item> tag =
-                        TagKey.create(Registries.ITEM, tagId);
-                    return stack.is(tag);
-                }
-            } else {
-                // Direct item ID specification
-                Identifier itemId = Identifier.tryParse(entry);
-                if (itemId != null) {
-                    var holderOptional = BuiltInRegistries.ITEM.get(itemId);
-                    if (holderOptional.isPresent()) {
-                        return stack.is(holderOptional.get());
-                    }
-                }
-            }
-            return false;
-        }
-
-        private static boolean validateAttributeColorRule(Object obj) {
-            if (!(obj instanceof String rule)) return false;
-
-            String[] parts = rule.split(":");
-            // Expect format: namespace:path:LOGIC[:#HEXCOLOR]
-            if (parts.length < 3 || parts.length > 4) return false;
-
-            // Reconstruct potential Identifier string
-            String potentialId = parts[0] + ":" + parts[1];
-            if (Identifier.tryParse(potentialId) == null) {
-                return false;
-            }
-
-            String logicStr = parts[2].toUpperCase();
-            ColorLogic parsedLogic;
-            try {
-                if (logicStr.equals("DEFAULT")) return false;
-                parsedLogic = ColorLogic.valueOf(logicStr);
-            } catch (IllegalArgumentException e) {
-                return false;
-            }
-
-            // Validate based on logic
-            if (parsedLogic == ColorLogic.FIXED) {
-                // FIXED requires 4 parts and a valid hex color in the last part
-                return parts.length == 4 && validateHexColor(parts[3]);
-            } else {
-                // INVERTED requires exactly 3 parts
-                return parts.length == 3;
-            }
-        }
-
-        @Nullable
-        public static AttributeColorRule parseRuleString(String rule) {
-             String[] parts = rule.split(":");
-             if (parts.length < 3 || parts.length > 4) return null;
-
-             Identifier attributeId = Identifier.tryParse(parts[0] + ":" + parts[1]);
-             if (attributeId == null) return null;
-
-             String logicStr = parts[2].toUpperCase();
-             ColorLogic parsedLogic;
-             try {
-                 if (logicStr.equals("DEFAULT")) return null;
-                 parsedLogic = ColorLogic.valueOf(logicStr);
-             } catch (IllegalArgumentException e) {
-                 return null;
-             }
-
-             String hexColor = null;
-             if (parsedLogic == ColorLogic.FIXED) {
-                 if (parts.length != 4) return null;
-                 hexColor = parts[3];
-                 if (!validateHexColor(hexColor)) return null;
-                 // We'll convert hex to ChatFormatting later in the handler
-             } else {
-                 if (parts.length != 3) return null;
-             }
-             return new AttributeColorRule(attributeId, parsedLogic, null, hexColor);
-        }
+    public static void register() {
+        INSTANCE = ConfigApi.registerAndLoadConfig(
+                (Supplier<DynamicTooltipsConfig>) DynamicTooltipsConfig::new,
+                RegisterType.CLIENT);
     }
-} 
+
+    @Comment("Append Block Interaction Range attribute line to relevant tooltips (pickaxes, shovels, etc.)")
+    public ValidatedBoolean appendBlockInteractionRangeTooltip = new ValidatedBoolean(true);
+
+    @Comment("Items or tags that should display Block Interaction Range tooltips.\n" +
+            "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\n" +
+            "Default includes common mining tools (pickaxes, axes, shovels, hoes, shears).")
+    public ValidatedList<String> blockInteractionRangeItemTags = ValidatedList.ofString(
+            List.of("#minecraft:enchantable/mining"));
+
+    @Comment("Append Entity Interaction Range attribute line to relevant tooltips (swords, etc.)")
+    public ValidatedBoolean appendEntityInteractionRangeTooltip = new ValidatedBoolean(true);
+
+    @Comment("Items or tags that should display Entity Interaction Range tooltips.\n" +
+            "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\n" +
+            "Default includes weapon-related enchantable tags.")
+    public ValidatedList<String> entityInteractionRangeItemTags = ValidatedList.ofString(
+            List.of(
+                    "#minecraft:enchantable/weapon",
+                    "#minecraft:enchantable/trident",
+                    "#minecraft:enchantable/fire_aspect",
+                    "#minecraft:enchantable/sharp_weapon"));
+
+    @Comment("Show the 'Hold [Shift] to expand...' hint in tooltips that have merged attributes or collapsed enchantments.")
+    public ValidatedBoolean showUsabilityHint = new ValidatedBoolean(false);
+
+    @Comment("Collapse enchantment descriptions on gear, requiring Shift to be held to view them.\nEnchanted Books always show descriptions.")
+    public ValidatedBoolean collapseEnchantmentTooltipsOnGear = new ValidatedBoolean(true);
+
+    @Comment("Enable custom coloring of enchantments in tooltips.")
+    public ValidatedBoolean colorEnchantmentNames = new ValidatedBoolean(true);
+
+    @Comment("Hex color code (#RRGGBB) for regular enchantment names (if colorEnchantmentNames is true). Curses are always red.")
+    public ValidatedString enchantmentNameColor = new ValidatedString("#AAAAAA");
+
+    @Comment("Hex color code (#RRGGBB) for enchantment description text.")
+    public ValidatedString enchantmentDescriptionColor = new ValidatedString("#808080");
+
+    @Comment("Hex color code (#RRGGBB) for enchantments above their max level (excluding curses) if colorEnchantmentNames is true.")
+    public ValidatedString superLeveledEnchantmentColor = new ValidatedString("#FF55FF");
+
+    @Comment("Custom color rules for specific attributes in tooltips.\n" +
+            "Format: \"attribute_id:LOGIC[:#HEXCOLOR]\"\n" +
+            "  attribute_id: identifier (e.g. minecraft:generic.movement_speed)\n" +
+            "  LOGIC: INVERTED (flip default sentiment coloring) or FIXED (always use #HEXCOLOR)\n" +
+            "  :#HEXCOLOR: required for FIXED\n" +
+            "Unspecified attributes use vanilla coloring.")
+    public ValidatedList<String> attributeColorOverrides = ValidatedList.ofString(List.of(
+            "additionalentityattributes:generic.hitbox_height:FIXED:#808080",
+            "additionalentityattributes:generic.hitbox_width:FIXED:#808080",
+            "additionalentityattributes:generic.model_height:FIXED:#808080",
+            "additionalentityattributes:generic.model_width:FIXED:#808080",
+            "additionalentityattributes:generic.height:FIXED:#808080",
+            "additionalentityattributes:generic.width:FIXED:#808080",
+            "additionalentityattributes:generic.model_scale:FIXED:#808080",
+            "additionalentityattributes:generic.mob_detection_range:INVERTED",
+            "ranged_weapon:pull_time:INVERTED"));
+
+    // === Helpers preserved from the old FCAP-based config ===
+
+    public record AttributeColorRule(Identifier attributeId, ColorLogic logic, @Nullable ChatFormatting fixedColor, @Nullable String hexColor) {}
+
+    public static boolean validateHexColor(String str) {
+        return str != null && HEX_COLOR_PATTERN.matcher(str).matches();
+    }
+
+    /**
+     * Checks if an ItemStack matches an item/tag specification string.
+     *
+     * @param stack The ItemStack to check
+     * @param entry Format: "namespace:path" for items, "#namespace:path" for tags
+     * @return true if the stack matches the specification
+     */
+    public static boolean matchesItemOrTag(ItemStack stack, String entry) {
+        if (entry.startsWith("#")) {
+            Identifier tagId = Identifier.tryParse(entry.substring(1));
+            if (tagId != null) {
+                TagKey<Item> tag = TagKey.create(Registries.ITEM, tagId);
+                return stack.is(tag);
+            }
+        } else {
+            Identifier itemId = Identifier.tryParse(entry);
+            if (itemId != null) {
+                var holderOptional = BuiltInRegistries.ITEM.get(itemId);
+                if (holderOptional.isPresent()) {
+                    return stack.is(holderOptional.get());
+                }
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    public static AttributeColorRule parseRuleString(String rule) {
+        String[] parts = rule.split(":");
+        if (parts.length < 3 || parts.length > 4) return null;
+
+        Identifier attributeId = Identifier.tryParse(parts[0] + ":" + parts[1]);
+        if (attributeId == null) return null;
+
+        String logicStr = parts[2].toUpperCase();
+        ColorLogic parsedLogic;
+        try {
+            if (logicStr.equals("DEFAULT")) return null;
+            parsedLogic = ColorLogic.valueOf(logicStr);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+
+        String hexColor = null;
+        if (parsedLogic == ColorLogic.FIXED) {
+            if (parts.length != 4) return null;
+            hexColor = parts[3];
+            if (!validateHexColor(hexColor)) return null;
+        } else {
+            if (parts.length != 3) return null;
+        }
+        return new AttributeColorRule(attributeId, parsedLogic, null, hexColor);
+    }
+}

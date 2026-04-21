@@ -25,7 +25,7 @@ public abstract class EnchantmentMixin {
     )
     private static Component dynamictooltips$colorEnchantmentName(Component original, @Local(argsOnly = true) Holder<Enchantment> enchantment, @Local(argsOnly = true) int level) {
 
-        if (!DynamicTooltipsConfig.CLIENT.colorEnchantmentNames.get()) {
+        if (!DynamicTooltipsConfig.INSTANCE.colorEnchantmentNames.get()) {
             return original;
         }
 
@@ -44,10 +44,10 @@ public abstract class EnchantmentMixin {
 
         if (isSuperLeveled) {
             // Apply super-level color if it's super-leveled
-            hexColorToApply = Optional.of(DynamicTooltipsConfig.CLIENT.superLeveledEnchantmentColor.get());
+            hexColorToApply = Optional.of(DynamicTooltipsConfig.INSTANCE.superLeveledEnchantmentColor.get());
         } else {
             // For regular enchantments, only apply color if user changed it from the default gray
-            String configuredRegularColor = DynamicTooltipsConfig.CLIENT.enchantmentNameColor.get();
+            String configuredRegularColor = DynamicTooltipsConfig.INSTANCE.enchantmentNameColor.get();
             if (!"#AAAAAA".equalsIgnoreCase(configuredRegularColor)) {
                 hexColorToApply = Optional.of(configuredRegularColor);
             }

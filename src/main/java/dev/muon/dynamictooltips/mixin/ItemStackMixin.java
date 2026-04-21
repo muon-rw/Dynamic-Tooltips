@@ -63,7 +63,7 @@ public class ItemStackMixin {
             }
         }
 
-        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Keybindings.isDetailedView() && !TooltipPromptHandler.promptAddedThisTick) {
+        if (DynamicTooltipsConfig.INSTANCE.showUsabilityHint.get() && !Keybindings.isDetailedView() && !TooltipPromptHandler.promptAddedThisTick) {
             if (result.needsShiftPrompt()) {
                 tooltip.add(TooltipPromptHandler.getExpandPrompt());
                 TooltipPromptHandler.promptAddedThisTick = true;
@@ -93,7 +93,7 @@ public class ItemStackMixin {
         EnchantmentTooltipHandler.getInstance().revertContext(stack);
 
         // Use Keybindings.isDetailedView()
-        if (DynamicTooltipsConfig.CLIENT.showUsabilityHint.get() && !Keybindings.isDetailedView() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
+        if (DynamicTooltipsConfig.INSTANCE.showUsabilityHint.get() && !Keybindings.isDetailedView() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
             if (!TooltipPromptHandler.promptAddedThisTick) {
                 list.add(TooltipPromptHandler.getExpandPrompt());
                 TooltipPromptHandler.promptAddedThisTick = true;

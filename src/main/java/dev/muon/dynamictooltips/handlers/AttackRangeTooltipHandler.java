@@ -1,5 +1,14 @@
 package dev.muon.dynamictooltips.handlers;
 
+// Better Combat is NOT YET UPDATED for Minecraft 26.1.2. The full Better Combat
+// integration (attack range calculation + Two-Handed weapon tooltip) is stashed below as
+// a block comment — uncomment, restore the matching dependency in build.gradle and the
+// mixins.json entry for compat.bettercombat.WeaponAttributeTooltipMixin when BC updates.
+//
+// While BC is missing, AttributeTooltipHandler routes all attack-range handling through
+// EntityRangeTooltipHandler.
+
+/*
 import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.client.BetterCombatClientMod;
 import net.bettercombat.logic.WeaponRegistry;
@@ -32,10 +41,6 @@ import java.util.function.Consumer;
 import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler.TooltipApplyResult;
 import dev.muon.dynamictooltips.Keybindings;
 
-/**
- * Handles adding a dynamic Attack Range tooltip, integrating with Better Combat
- * and merging Entity Interaction Range modifiers.
- */
 public class AttackRangeTooltipHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("DynamicTooltips-AttackRange");
@@ -214,4 +219,5 @@ public class AttackRangeTooltipHandler {
             return (value >= 0 ? "+" : "") + FORMAT.format(value * 100) + "%";
         }
     }
-} 
+}
+*/

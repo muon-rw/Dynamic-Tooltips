@@ -40,7 +40,7 @@ public class BlockRangeTooltipHandler {
     private static final Holder<Attribute> BLOCK_RANGE_ATTR_HOLDER = Attributes.BLOCK_INTERACTION_RANGE;
 
     public static void appendBlockRangeLines(ItemStack stack, Consumer<Component> tooltipConsumer, @Nullable Player player, TooltipApplyResult result) {
-        if (!DynamicTooltipsConfig.CLIENT.appendBlockInteractionRangeTooltip.get()) {
+        if (!DynamicTooltipsConfig.INSTANCE.appendBlockInteractionRangeTooltip.get()) {
             return;
         }
 
@@ -49,8 +49,8 @@ public class BlockRangeTooltipHandler {
         }
 
         // Check if item matches any of the configured items or tags
-        boolean isRelevantTool = DynamicTooltipsConfig.CLIENT.blockInteractionRangeItemTags.get().stream()
-            .anyMatch(entry -> DynamicTooltipsConfig.Client.matchesItemOrTag(stack, entry));
+        boolean isRelevantTool = DynamicTooltipsConfig.INSTANCE.blockInteractionRangeItemTags.get().stream()
+            .anyMatch(entry -> DynamicTooltipsConfig.matchesItemOrTag(stack, entry));
 
         if (!isRelevantTool) {
             return;
