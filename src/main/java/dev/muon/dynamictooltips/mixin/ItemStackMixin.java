@@ -2,38 +2,30 @@ package dev.muon.dynamictooltips.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
+import dev.muon.dynamictooltips.Keybindings;
+import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
 import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler;
 import dev.muon.dynamictooltips.handlers.EnchantmentTooltipHandler;
 import dev.muon.dynamictooltips.handlers.TooltipPromptHandler;
-import net.minecraft.world.entity.EquipmentSlotGroup;
-import org.jetbrains.annotations.Nullable;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-
-import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.List;
 import java.util.ListIterator;
-import dev.muon.dynamictooltips.config.DynamicTooltipsConfig;
-import dev.muon.dynamictooltips.Keybindings;
 
 @Mixin(ItemStack.class)
 public class ItemStackMixin {
-    // Reset the shift prompt flag at the beginning of tooltip generation for each item
-    @Inject(
-            method = "getTooltipLines(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;)Ljava/util/List;",
-            at = @At("HEAD")
-    )
-    private void dynamictooltips$resetPromptFlag(Item.TooltipContext context, Player player, TooltipFlag flags, CallbackInfoReturnable<List<Component>> cir) {
-        TooltipPromptHandler.promptAddedThisTick = false;
-    }
 
     // Modify the final tooltip list after all vanilla processing
     @ModifyReturnValue(
@@ -63,10 +55,21 @@ public class ItemStackMixin {
             }
         }
 
-        if (DynamicTooltipsConfig.INSTANCE.showUsabilityHint.get() && !Keybindings.isDetailedView() && !TooltipPromptHandler.promptAddedThisTick) {
+        // Single source of truth for the expand prompt:
+        //   - If attributes need it (merged or not), place at the end (below attributes).
+        //   - Else if only enchants need it, splice in right below the enchant section
+        //     so the hint sits between enchants and attributes (or at the end if the item
+        //     has no attribute section at all).
+        if (DynamicTooltipsConfig.INSTANCE.showUsabilityHint.get() && !Keybindings.isDetailedView()) {
             if (result.needsShiftPrompt()) {
                 tooltip.add(TooltipPromptHandler.getExpandPrompt());
-                TooltipPromptHandler.promptAddedThisTick = true;
+            } else if (EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
+                int insertIdx = TooltipPromptHandler.findEnchantSectionEnd(tooltip);
+                if (insertIdx < 0) {
+                    tooltip.add(TooltipPromptHandler.getExpandPrompt());
+                } else {
+                    tooltip.add(insertIdx, TooltipPromptHandler.getExpandPrompt());
+                }
             }
         }
 
@@ -82,22 +85,13 @@ public class ItemStackMixin {
         EnchantmentTooltipHandler.getInstance().setupContext((ItemStack) (Object) this);
     }
 
-    // Inject after vanilla enchantment tooltips to revert context and potentially add shift prompt
+    // Revert the enchantment-context hack once vanilla is done rendering enchant lines.
     @Inject(
             method = "getTooltipLines(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;)Ljava/util/List;",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;addDetailsToTooltip(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/item/component/TooltipDisplay;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;Ljava/util/function/Consumer;)V",
             shift = At.Shift.AFTER)
     )
     private void dynamictooltips$afterEnchantmentTooltips(Item.TooltipContext context, Player player, TooltipFlag flags, CallbackInfoReturnable<List<Component>> cir, @Local List<Component> list) {
-        ItemStack stack = (ItemStack) (Object) this;
-        EnchantmentTooltipHandler.getInstance().revertContext(stack);
-
-        // Use Keybindings.isDetailedView()
-        if (DynamicTooltipsConfig.INSTANCE.showUsabilityHint.get() && !Keybindings.isDetailedView() && EnchantmentTooltipHandler.itemHasExpandableEnchantments(stack)) {
-            if (!TooltipPromptHandler.promptAddedThisTick) {
-                list.add(TooltipPromptHandler.getExpandPrompt());
-                TooltipPromptHandler.promptAddedThisTick = true;
-            }
-        }
+        EnchantmentTooltipHandler.getInstance().revertContext((ItemStack) (Object) this);
     }
 }
