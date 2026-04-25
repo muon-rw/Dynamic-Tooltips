@@ -3,6 +3,7 @@ package dev.muon.dynamictooltips.handlers;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import dev.muon.dynamictooltips.DynamicTooltips;
+import dev.muon.dynamictooltips.api.DynamicTooltipsAPI;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceLinkedOpenHashMap;
 // import net.fabricmc.loader.api.FabricLoader; // BC stashed for 26.1.2
 import net.minecraft.world.item.component.ItemAttributeModifiers;
@@ -15,7 +16,6 @@ import java.util.*;
 import java.util.function.Consumer;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.util.Util;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -27,7 +27,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 // Better Combat is NOT YET UPDATED for 26.1.2 — integration stashed; re-enable alongside
 // AttackRangeTooltipHandler / WeaponAttributeTooltipMixin when BC updates.
@@ -83,24 +82,81 @@ public class AttributeTooltipHandler {
                     .thenComparing(AttributeModifier::id);
 
 
-    // Attributes that should be treated as "base" modifiers: Display a base value as green, gold when merged
-    private static final Set<Identifier> BASE_ATTRIBUTE_IDS = Util.make(new HashSet<>(), set -> {
-        set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_DAMAGE.value()));
-        set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_SPEED.value()));
-        set.add(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ENTITY_INTERACTION_RANGE.value()));
-        set.add(Identifier.fromNamespaceAndPath("ranged_weapon", "damage"));
-        set.add(Identifier.fromNamespaceAndPath("ranged_weapon", "pull_time"));
-        set.remove(null);
-    });
+    // Lazily-merged caches of (config + API) data. Refreshed when the API version counter changes
+    // so calls to DynamicTooltipsAPI.declare* after the first lookup are still picked up.
+    private static volatile int cachedApiVersion = -1;
+    private static volatile Set<Identifier> cachedBaseAttributeIds = null;
+    private static volatile Map<Identifier, Identifier> cachedBaseModifierIds = null;
+    private static volatile Map<Identifier, DynamicTooltipsAPI.PercentRule> cachedPercentRules = null;
 
-    // TODO: Can these be inferred safely?
-    private static final Map<Identifier, Identifier> BASE_MODIFIER_IDS = Util.make(new HashMap<>(), map -> {
-        map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_DAMAGE.value()), Item.BASE_ATTACK_DAMAGE_ID);
-        map.put(BuiltInRegistries.ATTRIBUTE.getKey(Attributes.ATTACK_SPEED.value()), Item.BASE_ATTACK_SPEED_ID);
-        map.put(Identifier.fromNamespaceAndPath("ranged_weapon", "damage"), Identifier.fromNamespaceAndPath("ranged_weapon", "base_damage"));
-        map.put(Identifier.fromNamespaceAndPath("ranged_weapon", "pull_time"), Identifier.fromNamespaceAndPath("ranged_weapon", "base_pull_time"));
-        map.remove(null);
-    });
+    private static void ensureCachesFresh() {
+        int apiVersion = DynamicTooltipsAPI.version();
+        if (cachedBaseAttributeIds != null && apiVersion == cachedApiVersion) return;
+
+        Set<Identifier> baseAttrs = new HashSet<>(DynamicTooltipsAPI.baseAttributes());
+        for (String entry : DynamicTooltipsConfig.INSTANCE.baseAttributes.get()) {
+            Identifier parsed = DynamicTooltipsConfig.parseBaseAttributeEntry(entry);
+            if (parsed != null) {
+                baseAttrs.add(parsed);
+            } else {
+                LOGGER.warn("Failed to parse base attribute from config: {}", entry);
+            }
+        }
+
+        Map<Identifier, Identifier> baseModifiers = new HashMap<>(DynamicTooltipsAPI.baseModifierMappings());
+        for (String entry : DynamicTooltipsConfig.INSTANCE.baseModifierMappings.get()) {
+            DynamicTooltipsConfig.BaseModifierEntry parsed = DynamicTooltipsConfig.parseBaseModifierEntry(entry);
+            if (parsed != null) {
+                baseModifiers.put(parsed.attributeId(), parsed.baseModifierId());
+            } else {
+                LOGGER.warn("Failed to parse base modifier mapping from config: {}", entry);
+            }
+        }
+
+        Map<Identifier, DynamicTooltipsAPI.PercentRule> percentRules = new HashMap<>(DynamicTooltipsAPI.percentAttributes());
+        for (String entry : DynamicTooltipsConfig.INSTANCE.percentAttributes.get()) {
+            DynamicTooltipsConfig.PercentEntry parsed = DynamicTooltipsConfig.parsePercentEntry(entry);
+            if (parsed != null) {
+                percentRules.put(parsed.attributeId(), new DynamicTooltipsAPI.PercentRule(parsed.scaleFactor(), null));
+            } else {
+                LOGGER.warn("Failed to parse percent attribute from config: {}", entry);
+            }
+        }
+
+        cachedBaseAttributeIds = baseAttrs;
+        cachedBaseModifierIds = baseModifiers;
+        cachedPercentRules = percentRules;
+        cachedApiVersion = apiVersion;
+    }
+
+    /**
+     * Drops all cached parsed-config + merged-API data so the next lookup re-reads from
+     * {@link DynamicTooltipsConfig#INSTANCE}. Wired to {@code DynamicTooltipsConfig#onUpdateClient}
+     * so FzzyConfig hot reloads (GUI edits) apply without restart.
+     */
+    public static void invalidateCaches() {
+        cachedBaseAttributeIds = null;
+        cachedBaseModifierIds = null;
+        cachedPercentRules = null;
+        cachedApiVersion = -1;
+        parsedAttributeColorRules = null;
+    }
+
+    private static Set<Identifier> getBaseAttributeIds() {
+        ensureCachesFresh();
+        return cachedBaseAttributeIds;
+    }
+
+    private static Map<Identifier, Identifier> getBaseModifierIds() {
+        ensureCachesFresh();
+        return cachedBaseModifierIds;
+    }
+
+    @Nullable
+    public static DynamicTooltipsAPI.PercentRule getPercentRule(Identifier attributeId) {
+        ensureCachesFresh();
+        return cachedPercentRules.get(attributeId);
+    }
 
 
 
@@ -670,22 +726,24 @@ public class AttributeTooltipHandler {
         double absValue = Math.abs(value);
 
         if (operation == Operation.ADD_VALUE) {
-            // Special formatting for knockback resistance (display as percentage)
-            if (attribute == Attributes.KNOCKBACK_RESISTANCE.value()) {
-                return FORMAT.format(absValue * 100) + "%" ;
-                
-            } else {
-                return FORMAT.format(absValue);
+            Identifier attrId = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
+            DynamicTooltipsAPI.PercentRule rule = attrId != null ? getPercentRule(attrId) : null;
+            if (rule != null) {
+                if (rule.displayFunction() != null) {
+                    return rule.displayFunction().format(absValue);
+                }
+                return FORMAT.format(absValue * rule.scaleFactor()) + "%";
             }
-        } else {
-            return FORMAT.format(absValue * 100);
+            return FORMAT.format(absValue);
         }
+        // ADD_MULTIPLIED_*: vanilla flat — translation key already supplies the % suffix.
+        return FORMAT.format(absValue * 100);
     }
 
 
     private static boolean isBaseAttribute(Attribute attribute) {
         Identifier id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
-        return id != null && BASE_ATTRIBUTE_IDS.contains(id);
+        return id != null && getBaseAttributeIds().contains(id);
     }
 
     private static boolean isBaseModifier(Attribute attribute, AttributeModifier modifier) {
@@ -697,7 +755,7 @@ public class AttributeTooltipHandler {
     @Nullable
     private static Identifier getBaseModifierId(Attribute attribute) {
         Identifier id = BuiltInRegistries.ATTRIBUTE.getKey(attribute);
-        return id != null ? BASE_MODIFIER_IDS.get(id) : null;
+        return id != null ? getBaseModifierIds().get(id) : null;
     }
 
 

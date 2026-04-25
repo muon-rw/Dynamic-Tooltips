@@ -47,6 +47,12 @@ public class DynamicTooltipsConfig extends Config {
                 RegisterType.CLIENT);
     }
 
+    @Override
+    public void onUpdateClient() {
+        super.onUpdateClient();
+        dev.muon.dynamictooltips.handlers.AttributeTooltipHandler.invalidateCaches();
+    }
+
     @Comment("Append Block Interaction Range attribute line to relevant tooltips (pickaxes, shovels, etc.)")
     public ValidatedBoolean appendBlockInteractionRangeTooltip = new ValidatedBoolean(true);
 
@@ -103,6 +109,34 @@ public class DynamicTooltipsConfig extends Config {
             "additionalentityattributes:generic.model_scale:FIXED:#808080",
             "additionalentityattributes:generic.mob_detection_range:INVERTED",
             "ranged_weapon:pull_time:INVERTED"));
+
+    @Comment("Attributes whose flat (ADD_VALUE) modifiers should be rendered as percentages.\n" +
+            "Format: \"attribute_id[:scaleFactor]\" (default scale = 100)\n" +
+            "  attribute_id: identifier (e.g. minecraft:knockback_resistance)\n" +
+            "  scaleFactor: multiplier applied to the raw value before the % sign (e.g. 100 means 0.1 -> 10%).\n" +
+            "Mods can also register percent attributes via DynamicTooltipsAPI; this list overrides any API entries on conflict.")
+    public ValidatedList<String> percentAttributes = ValidatedList.ofString(List.of(
+            "minecraft:knockback_resistance:100"));
+
+    @Comment("Attributes whose modifiers should be merged with the item's base modifier (rendered green/gold).\n" +
+            "Format: \"attribute_id\"\n" +
+            "Pair each with an entry in baseModifierMappings to teach the handler which modifier ID is the base.\n" +
+            "Mods can also register base attributes via DynamicTooltipsAPI; this list overrides any API entries on conflict.")
+    public ValidatedList<String> baseAttributes = ValidatedList.ofString(List.of(
+            "minecraft:attack_damage",
+            "minecraft:attack_speed",
+            "minecraft:entity_interaction_range",
+            "ranged_weapon:damage",
+            "ranged_weapon:pull_time"));
+
+    @Comment("Mapping from attribute ID to the modifier ID that represents its base value (used for merge rendering).\n" +
+            "Format: \"attribute_id=base_modifier_id\"\n" +
+            "Mods can also register mappings via DynamicTooltipsAPI; this list overrides any API entries on conflict.")
+    public ValidatedList<String> baseModifierMappings = ValidatedList.ofString(List.of(
+            "minecraft:attack_damage=minecraft:base_attack_damage",
+            "minecraft:attack_speed=minecraft:base_attack_speed",
+            "ranged_weapon:damage=ranged_weapon:base_damage",
+            "ranged_weapon:pull_time=ranged_weapon:base_pull_time"));
 
     // === Helpers preserved from the old FCAP-based config ===
 
@@ -164,5 +198,45 @@ public class DynamicTooltipsConfig extends Config {
             if (parts.length != 3) return null;
         }
         return new AttributeColorRule(attributeId, parsedLogic, null, hexColor);
+    }
+
+    public record PercentEntry(Identifier attributeId, double scaleFactor) {}
+
+    public record BaseModifierEntry(Identifier attributeId, Identifier baseModifierId) {}
+
+    public static final double DEFAULT_PERCENT_SCALE = 100.0;
+
+    @Nullable
+    public static PercentEntry parsePercentEntry(String entry) {
+        String[] parts = entry.split(":");
+        if (parts.length < 2 || parts.length > 3) return null;
+
+        Identifier attributeId = Identifier.tryParse(parts[0] + ":" + parts[1]);
+        if (attributeId == null) return null;
+
+        double scale = DEFAULT_PERCENT_SCALE;
+        if (parts.length == 3) {
+            try {
+                scale = Double.parseDouble(parts[2]);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return new PercentEntry(attributeId, scale);
+    }
+
+    @Nullable
+    public static Identifier parseBaseAttributeEntry(String entry) {
+        return Identifier.tryParse(entry);
+    }
+
+    @Nullable
+    public static BaseModifierEntry parseBaseModifierEntry(String entry) {
+        String[] sides = entry.split("=", 2);
+        if (sides.length != 2) return null;
+        Identifier attr = Identifier.tryParse(sides[0]);
+        Identifier base = Identifier.tryParse(sides[1]);
+        if (attr == null || base == null) return null;
+        return new BaseModifierEntry(attr, base);
     }
 }
