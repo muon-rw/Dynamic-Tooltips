@@ -1,6 +1,9 @@
 pluginManagement {
 	repositories {
-		mavenLocal()
+		maven {
+			name = 'Muon'
+			url = 'https://maven.muon.rip/releases'
+		}
 		maven {
 			name = 'Fabric'
 			url = 'https://maven.fabricmc.net/'

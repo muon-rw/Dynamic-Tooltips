@@ -528,6 +528,7 @@ public class AttributeTooltipHandler {
         BlockRangeTooltipHandler.appendBlockRangeLines(stack, tooltip, player, result);
         // Better Combat not updated for 26.1.2 — always go through EntityRangeTooltipHandler for now.
         EntityRangeTooltipHandler.appendEntityRangeLines(stack, tooltip, player, result);
+        MiningSpeedTooltipHandler.appendMiningSpeedLines(stack, tooltip, player, result);
     }
 
 
@@ -569,10 +570,12 @@ public class AttributeTooltipHandler {
                 continue;
             }
 
-            // Skip if already handled OR if it's Block/Entity Interaction Range (handled separately later)
-            if (result.handledAttributes.contains(attr) 
+            // Skip if already handled OR if it's Block/Entity Interaction Range or Mining Efficiency
+            // (handled separately by their dedicated tooltip handlers).
+            if (result.handledAttributes.contains(attr)
                 || attr.value() == Attributes.BLOCK_INTERACTION_RANGE.value()
-                || attr.value() == Attributes.ENTITY_INTERACTION_RANGE.value()) {
+                || attr.value() == Attributes.ENTITY_INTERACTION_RANGE.value()
+                || attr.value() == Attributes.MINING_EFFICIENCY.value()) {
                   continue;
             }
             if (modifiers.isEmpty()) continue;

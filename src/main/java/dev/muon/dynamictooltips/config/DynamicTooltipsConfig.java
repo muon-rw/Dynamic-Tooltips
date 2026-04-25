@@ -75,6 +75,15 @@ public class DynamicTooltipsConfig extends Config {
                     "#minecraft:enchantable/fire_aspect",
                     "#minecraft:enchantable/sharp_weapon"));
 
+    @Comment("Append a merged Mining Speed line to mining tool tooltips (tool material speed + Mining Efficiency).")
+    public ValidatedBoolean appendMiningSpeedTooltip = new ValidatedBoolean(true);
+
+    @Comment("Items or tags that should display the Mining Speed tooltip.\n" +
+            "Format: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\n" +
+            "Default matches the same tag used by Block Interaction Range (pickaxes, axes, shovels, hoes).")
+    public ValidatedList<String> miningSpeedItemTags = ValidatedList.ofString(
+            List.of("#minecraft:enchantable/mining"));
+
     @Comment("Show the 'Hold [Shift] to expand...' hint in tooltips that have merged attributes or collapsed enchantments.")
     public ValidatedBoolean showUsabilityHint = new ValidatedBoolean(false);
 

@@ -2,10 +2,10 @@ plugins {
 	id 'net.fabricmc.fabric-loom' version '1.16-SNAPSHOT'
 	id 'maven-publish'
 	id "me.modmuss50.mod-publish-plugin" version "1.1.0"
-	id 'dev.mixinmcp.decompile' version '0.8.0'
+	id 'dev.mixinmcp.decompile' version '1.0.2'
 }
 
-version = project.mod_version
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
 base {

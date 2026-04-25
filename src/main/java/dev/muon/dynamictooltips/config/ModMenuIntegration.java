@@ -8,8 +8,8 @@ import me.fzzyhmstrs.fzzy_config.api.ConfigApi;
 public class ModMenuIntegration implements ModMenuApi {
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        // Delegate to FzzyConfig — it owns the ConfigScreen UI. FzzyConfig also registers its own
-        // ConfigModMenuCompat; this fallback handles the case where ModMenu picks our entrypoint first.
+        // Delegate to FzzyConfig — it owns the ConfigScreen UI. FzzyConfig also registers its own ConfigModMenuCompat
+        // This is mostly vestigial (could most likely be left out without issue) but also a fallback
         return parent -> {
             ConfigApi.INSTANCE.openScreen(DynamicTooltips.MODID);
             return parent;

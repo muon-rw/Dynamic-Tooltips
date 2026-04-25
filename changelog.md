@@ -1,7 +1,10 @@
+## 1.0.0
+- Add new feature, Mining Speed Tooltips!
+
 ## 0.9.0
 - Port Percent Attribute concept from Neoforge
 - Knockback Resistance now displays in percent format (+0.1 -> +10%)
-- Base and Percent attributes can now be specified by developers via the `DynamicTooltipsAPI`, or overridden via the client config 
+- Base and Percent attributes can now be specified by developers via the `DynamicTooltipsAPI` or overridden via the client config 
 
 ## 0.8.0
 - Update to 26.1.2

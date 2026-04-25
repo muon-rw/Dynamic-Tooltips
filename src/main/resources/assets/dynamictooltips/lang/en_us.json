@@ -3,6 +3,8 @@
   "key.dynamictooltips.show_details": "Expand Tooltip",
   "tooltip.dynamictooltips.expand_text_part": " Expand Tooltip",
 
+  "attribute.name.generic.mining_speed": "Mining Speed",
+
   "dynamictooltips.configuration.title": "Dynamic Tooltips Settings",
 
   "dynamictooltips.configuration.attributes": "Attributes Settings",
@@ -14,6 +16,10 @@
   "dynamictooltips.configuration.appendEntityInteractionRangeTooltip.tooltip": "Append Entity Interaction Range attribute line to relevant tooltips (e.g., weapons).",
   "dynamictooltips.configuration.entityInteractionRangeItemTags": "Entity Range Item Tags",
   "dynamictooltips.configuration.entityInteractionRangeItemTags.tooltip": "Items or tags that should display Entity Interaction Range tooltips.\nFormat: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\nDefault includes weapon-related enchantable tags.\nExamples:\n  \"minecraft:diamond_sword\" - specific item\n  \"#minecraft:enchantable/weapon\" - all items in tag",
+  "dynamictooltips.configuration.appendMiningSpeedTooltip": "Append Mining Speed",
+  "dynamictooltips.configuration.appendMiningSpeedTooltip.tooltip": "Append a merged Mining Speed line to mining tool tooltips. Combines the tool material's mining speed (an item property) with the Mining Efficiency attribute (the Efficiency enchant) into a single base modifier, with a Shift-expand breakdown.",
+  "dynamictooltips.configuration.miningSpeedItemTags": "Mining Speed Item Tags",
+  "dynamictooltips.configuration.miningSpeedItemTags.tooltip": "Items or tags that should display the Mining Speed tooltip.\nFormat: \"namespace:path\" for item IDs, or \"#namespace:path\" for tags.\nDefault matches the same enchantable/mining tag used by Block Interaction Range (pickaxes, axes, shovels, hoes).\nExamples:\n  \"minecraft:diamond_pickaxe\" - specific item\n  \"#minecraft:enchantable/mining\" - all items in tag",
   "dynamictooltips.configuration.attributeColorOverrides": "Attribute Color Overrides",
   "dynamictooltips.configuration.attributeColorOverrides.tooltip": "Define custom color rules for specific attributes in tooltips.\nFormat: \"attribute_id:LOGIC[:#HEXCOLOR]\".\n  attribute_id: The ResourceLocation of the attribute (e.g., minecraft:generic.movement_speed).\n  LOGIC: How to color the modifier value. Options: INVERTED, FIXED.\n    INVERTED: Use the opposite of the attribute's default sentiment coloring (e.g., positive value = red).\n    FIXED: Always use the specified hex color, regardless of value.\n  :#HEXCOLOR: Required only if LOGIC is FIXED. The hex color code (e.g., #RRGGBB).\n  (If no rule is specified for an attribute, vanilla default coloring is used).",
 
