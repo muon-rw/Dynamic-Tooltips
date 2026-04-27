@@ -1,6 +1,8 @@
 package dev.muon.dynamictooltips.api;
 
+import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler;
 import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
@@ -83,15 +85,53 @@ public final class DynamicTooltipsAPI {
         VERSION.incrementAndGet();
     }
 
+    /**
+     * Returns the effective percent-attribute rules: API declarations merged with the user's
+     * {@code percentAttributes} config (config wins on conflict). External consumers should use
+     * this when deciding how to render an attribute's value.
+     */
     public static Map<Identifier, PercentRule> percentAttributes() {
+        return AttributeTooltipHandler.effectivePercentRules();
+    }
+
+    /** Effective base-attribute set (API declarations merged with config; config wins on conflict). */
+    public static Set<Identifier> baseAttributes() {
+        return AttributeTooltipHandler.effectiveBaseAttributeIds();
+    }
+
+    /** Effective base-modifier mapping (API declarations merged with config; config wins on conflict). */
+    public static Map<Identifier, Identifier> baseModifierMappings() {
+        return AttributeTooltipHandler.effectiveBaseModifierIds();
+    }
+
+    /**
+     * Convenience single-id lookup against the effective percent rules.
+     * Returns {@code null} when the attribute has no percent rule from either API or config.
+     */
+    @Nullable
+    public static PercentRule percentRuleFor(Identifier attributeId) {
+        return AttributeTooltipHandler.getPercentRule(attributeId);
+    }
+
+    /**
+     * Raw API-declared percent attributes (NO config merge). Internal callers building the merged
+     * view need this to avoid recursion through {@link #percentAttributes()}; external callers
+     * should generally prefer {@link #percentAttributes()} or {@link #percentRuleFor(Identifier)}.
+     */
+    @ApiStatus.Internal
+    public static Map<Identifier, PercentRule> apiPercentAttributes() {
         return Collections.unmodifiableMap(PERCENT_ATTRIBUTES);
     }
 
-    public static Set<Identifier> baseAttributes() {
+    /** Raw API-declared base-attribute set (NO config merge). See {@link #apiPercentAttributes()}. */
+    @ApiStatus.Internal
+    public static Set<Identifier> apiBaseAttributes() {
         return Collections.unmodifiableSet(BASE_ATTRIBUTES);
     }
 
-    public static Map<Identifier, Identifier> baseModifierMappings() {
+    /** Raw API-declared base-modifier mappings (NO config merge). See {@link #apiPercentAttributes()}. */
+    @ApiStatus.Internal
+    public static Map<Identifier, Identifier> apiBaseModifierMappings() {
         return Collections.unmodifiableMap(BASE_MODIFIER_MAPPINGS);
     }
 

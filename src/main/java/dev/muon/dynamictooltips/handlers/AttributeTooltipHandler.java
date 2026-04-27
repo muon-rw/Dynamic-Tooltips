@@ -93,7 +93,7 @@ public class AttributeTooltipHandler {
         int apiVersion = DynamicTooltipsAPI.version();
         if (cachedBaseAttributeIds != null && apiVersion == cachedApiVersion) return;
 
-        Set<Identifier> baseAttrs = new HashSet<>(DynamicTooltipsAPI.baseAttributes());
+        Set<Identifier> baseAttrs = new HashSet<>(DynamicTooltipsAPI.apiBaseAttributes());
         for (String entry : DynamicTooltipsConfig.INSTANCE.baseAttributes.get()) {
             Identifier parsed = DynamicTooltipsConfig.parseBaseAttributeEntry(entry);
             if (parsed != null) {
@@ -103,7 +103,7 @@ public class AttributeTooltipHandler {
             }
         }
 
-        Map<Identifier, Identifier> baseModifiers = new HashMap<>(DynamicTooltipsAPI.baseModifierMappings());
+        Map<Identifier, Identifier> baseModifiers = new HashMap<>(DynamicTooltipsAPI.apiBaseModifierMappings());
         for (String entry : DynamicTooltipsConfig.INSTANCE.baseModifierMappings.get()) {
             DynamicTooltipsConfig.BaseModifierEntry parsed = DynamicTooltipsConfig.parseBaseModifierEntry(entry);
             if (parsed != null) {
@@ -113,7 +113,7 @@ public class AttributeTooltipHandler {
             }
         }
 
-        Map<Identifier, DynamicTooltipsAPI.PercentRule> percentRules = new HashMap<>(DynamicTooltipsAPI.percentAttributes());
+        Map<Identifier, DynamicTooltipsAPI.PercentRule> percentRules = new HashMap<>(DynamicTooltipsAPI.apiPercentAttributes());
         for (String entry : DynamicTooltipsConfig.INSTANCE.percentAttributes.get()) {
             DynamicTooltipsConfig.PercentEntry parsed = DynamicTooltipsConfig.parsePercentEntry(entry);
             if (parsed != null) {
@@ -156,6 +156,28 @@ public class AttributeTooltipHandler {
     public static DynamicTooltipsAPI.PercentRule getPercentRule(Identifier attributeId) {
         ensureCachesFresh();
         return cachedPercentRules.get(attributeId);
+    }
+
+    /**
+     * Effective percent rules (config + API merged). Backs
+     * {@link DynamicTooltipsAPI#percentAttributes()} so external consumers see the merged view
+     * without reaching into this handler class.
+     */
+    public static Map<Identifier, DynamicTooltipsAPI.PercentRule> effectivePercentRules() {
+        ensureCachesFresh();
+        return Collections.unmodifiableMap(cachedPercentRules);
+    }
+
+    /** Effective base-attribute set (config + API merged). Backs {@link DynamicTooltipsAPI#baseAttributes()}. */
+    public static Set<Identifier> effectiveBaseAttributeIds() {
+        ensureCachesFresh();
+        return Collections.unmodifiableSet(cachedBaseAttributeIds);
+    }
+
+    /** Effective base-modifier mapping (config + API merged). Backs {@link DynamicTooltipsAPI#baseModifierMappings()}. */
+    public static Map<Identifier, Identifier> effectiveBaseModifierIds() {
+        ensureCachesFresh();
+        return Collections.unmodifiableMap(cachedBaseModifierIds);
     }
 
 

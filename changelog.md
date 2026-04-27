@@ -1,3 +1,6 @@
+## 1.0.1
+- API Changes to properly retrieve the config overriden percent attribute data
+
 ## 1.0.0
 - Add new feature, Mining Speed Tooltips!
 
