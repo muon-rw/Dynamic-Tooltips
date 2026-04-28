@@ -677,6 +677,22 @@ public class AttributeTooltipHandler {
                 Component.translatable(attribute.getDescriptionId()));
     }
 
+    /**
+     * Renders an attribute's base value as a single tooltip line in the standard green
+     * "base value" format used by item attribute tooltips ("12.5 Max Health"). Pairs with
+     * {@link #createModifierComponent(Attribute, AttributeModifier)} for screens that
+     * display an attribute breakdown without going through item-tooltip processing.
+     *
+     * <p>Color is the un-merged base color ({@link #BASE_COLOR}); merging is intentionally
+     * not supported here — pass each modifier separately to render one line per modifier.
+     */
+    public static MutableComponent createBaseValueComponent(Attribute attribute, double value) {
+        return Component.translatable("attribute.modifier.equals.0",
+                FORMAT.format(value),
+                Component.translatable(attribute.getDescriptionId()))
+                .withStyle(BASE_COLOR);
+    }
+
 
     public static MutableComponent createModifierComponent(Attribute attribute, AttributeModifier modifier) {
         double value = modifier.amount();

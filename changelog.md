@@ -1,3 +1,6 @@
+## 1.0.2
+- API for building a styled modifier line using overrides/formatting
+
 ## 1.0.1
 - API Changes to properly retrieve the config overriden percent attribute data
 

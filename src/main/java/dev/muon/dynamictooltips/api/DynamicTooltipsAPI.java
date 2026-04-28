@@ -1,7 +1,10 @@
 package dev.muon.dynamictooltips.api;
 
 import dev.muon.dynamictooltips.handlers.AttributeTooltipHandler;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -137,6 +140,26 @@ public final class DynamicTooltipsAPI {
 
     public static int version() {
         return VERSION.get();
+    }
+
+    /**
+     * Build the green "base value" tooltip line ("12.5 Max Health") for an attribute,
+     * formatted to match the un-merged base lines emitted in item attribute tooltips.
+     * Pairs with {@link #createModifierComponent} for screens that surface an attribute
+     * breakdown outside of item tooltips.
+     */
+    public static MutableComponent createBaseValueComponent(Attribute attribute, double value) {
+        return AttributeTooltipHandler.createBaseValueComponent(attribute, value);
+    }
+
+    /**
+     * Build a single-modifier tooltip line ("+5 Max Health") with sentiment-aware coloring
+     * that respects the {@code attributeColorOverrides} config (FIXED hex / INVERTED logic)
+     * and percent-rule scaling. Each call renders exactly one modifier — pass modifiers
+     * individually rather than relying on item-tooltip auto-merging.
+     */
+    public static MutableComponent createModifierComponent(Attribute attribute, AttributeModifier modifier) {
+        return AttributeTooltipHandler.createModifierComponent(attribute, modifier);
     }
 
     /**
