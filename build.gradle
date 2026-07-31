@@ -1,8 +1,8 @@
 plugins {
 	id 'net.fabricmc.fabric-loom' version '1.16-SNAPSHOT'
 	id 'maven-publish'
-	id "me.modmuss50.mod-publish-plugin" version "1.1.0"
-	id 'dev.mixinmcp.decompile' version '1.0.2'
+	id "me.modmuss50.mod-publish-plugin" version "2.2.0"
+	id 'dev.mixinmcp.decompile' version '1.3.0'
 }
 
 // Snapshot publishing is selected by running any task whose name contains "snapshot"
@@ -171,8 +171,9 @@ publishMods {
 		minecraftVersions.add("${minecraft_version}")
 		requires("fabric-api")
 		requires("fzzy-config")
-		clientRequired = true
-		serverRequired = false
+		// Required since 2.0.0: CurseForge rejects uploads unless at least one side is declared.
+		client = true
+		server = false
 	}
 	modrinth {
 		projectId = "yakHVeQt"
@@ -180,5 +181,6 @@ publishMods {
 		minecraftVersions.add("${minecraft_version}")
 		requires("fabric-api")
 		requires("fzzy-config")
+		environment = CLIENT_ONLY
 	}
 }
